@@ -34,6 +34,10 @@
 #include "imgui.h"
 #include "imgui_freetype.h"
 
+#define TRACY_ENABLE
+#define TRACY_DELAYED_INIT
+#include "tracy/Tracy.hpp"
+
 #if defined STAR_SYSTEM_WINDOWS
 #include <windows.h>
 extern "C" __declspec(dllexport) DWORD NvOptimusEnablement = 1;
@@ -364,6 +368,7 @@ void ClientApplication::processInput(InputEvent const& event) {
 }
 
 void ClientApplication::update() {
+  ZoneScoped;
   float dt = GlobalTimestep * GlobalTimescale;
   auto& app = appController();
   if (m_state >= MainAppState::Title) {
@@ -419,6 +424,7 @@ void ClientApplication::update() {
 }
 
 void ClientApplication::render() {
+  ZoneScoped;
   m_framesSkipped = 0;
   auto config = m_root->configuration();
   auto assets = m_root->assets();

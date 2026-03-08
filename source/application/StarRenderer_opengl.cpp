@@ -3,6 +3,10 @@
 #include "StarCasting.hpp"
 #include "StarLogging.hpp"
 
+#define TRACY_ENABLE
+#define TRACY_DELAYED_INIT
+#include "tracy/Tracy.hpp"
+
 namespace Star {
 
 size_t const MultiTextureCount = 4;
@@ -90,6 +94,7 @@ static void GLAPIENTRY GlMessageCallback(GLenum, GLenum type, GLuint, GLenum, GL
 */
 
 OpenGlRenderer::OpenGlRenderer() {
+  glewExperimental = GL_TRUE;
   auto glewResult = glewInit();
   if (glewResult != GLEW_OK && glewResult != GLEW_ERROR_NO_GLX_DISPLAY)
     throw RendererException::format("Could not initialize GLEW: {}", (char*)glewGetErrorString(glewResult));
@@ -468,6 +473,7 @@ void OpenGlRenderer::setEffectTexture(String const& textureName, ImageView const
 }
 
 bool OpenGlRenderer::switchEffectConfig(String const& name) {
+  // ZoneScoped;
   flushImmediatePrimitives();
   auto find = m_effects.find(name);
   if (find == m_effects.end())
@@ -544,6 +550,7 @@ void OpenGlRenderer::setMultiTexturingEnabled(bool enabled) {
 }
 
 void OpenGlRenderer::setMultiSampling(unsigned multiSampling) {
+  // ZoneScoped;
   if (m_multiSampling == multiSampling)
     return;
 
@@ -602,6 +609,7 @@ void OpenGlRenderer::renderBuffer(RenderBufferPtr const& renderBuffer, Mat3F con
 }
 
 void OpenGlRenderer::flush(Mat3F const& transformation) {
+  ZoneScoped;
   flushImmediatePrimitives(transformation);
 }
 

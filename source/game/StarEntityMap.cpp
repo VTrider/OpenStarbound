@@ -3,17 +3,26 @@
 #include "StarInteractiveEntity.hpp"
 #include "StarProjectile.hpp"
 
+#include "thread"
+
+#define TRACY_ENABLE
+#define TRACY_DELAYED_INIT
+#include "tracy/Tracy.hpp"
+
 namespace Star {
 
 float const EntityMapSpatialHashSectorSize = 16.0f;
 int const EntityMap::MaximumEntityBoundBox = 10000;
 
 EntityMap::EntityMap(Vec2U const& worldSize, EntityId beginIdSpace, EntityId endIdSpace)
-  : m_geometry(worldSize),
-    m_spatialMap(EntityMapSpatialHashSectorSize),
-    m_nextId(beginIdSpace),
-    m_beginIdSpace(beginIdSpace),
-    m_endIdSpace(endIdSpace) {}
+    : m_geometry(worldSize),
+      m_spatialMap(EntityMapSpatialHashSectorSize),
+      m_nextId(beginIdSpace),
+      m_beginIdSpace(beginIdSpace),
+      m_endIdSpace(endIdSpace),
+      m_workerPool("EntityMapWorkerPool") {
+	  m_workerPool.start(std::thread::hardware_concurrency());
+}
 
 EntityId EntityMap::reserveEntityId() {
   if (m_spatialMap.size() >= (size_t)(m_endIdSpace - m_beginIdSpace))
@@ -207,6 +216,7 @@ void EntityMap::forEachEntityAtTile(Vec2I const& pos, EntityCallbackOf<TileEntit
 }
 
 void EntityMap::forAllEntities(EntityCallback const& callback, function<bool(EntityPtr const&, EntityPtr const&)> sortOrder) const {
+  ZoneScoped;
   // Even if there is no sort order, we still copy pointers to a temporary
   // list, so that it is safe to call addEntity from the callback.
   List<EntityPtr const*> allEntities;
@@ -216,6 +226,7 @@ void EntityMap::forAllEntities(EntityCallback const& callback, function<bool(Ent
 
   if (sortOrder) {
     allEntities.sort([&sortOrder](EntityPtr const* a, EntityPtr const* b) {
+      ZoneScoped;
         return sortOrder(*a, *b);
       });
   }
@@ -226,8 +237,8 @@ void EntityMap::forAllEntities(EntityCallback const& callback, function<bool(Ent
       callback(entity);
     } catch (...) {
       Logger::error("[EntityMap] Exception caught running forAllEntities callback for {} entity {} (named \"{}\")",
-        EntityTypeNames.getRight(entity->entityType()),
-        entity->entityId(),
+                    EntityTypeNames.getRight(entity->entityType()),
+                    entity->entityId(),
         entity->name()
       );
       throw;

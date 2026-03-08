@@ -11,6 +11,10 @@
 #include "StarThread.hpp"
 #include "StarCellularLighting.hpp"
 
+#define TRACY_ENABLE
+#define TRACY_DELAYED_INIT
+#include "tracy/Tracy.hpp"
+
 namespace Star {
 
 struct EntityDrawables {
@@ -48,6 +52,7 @@ struct WorldRenderData {
 };
 
 inline void WorldRenderData::clear() {
+  ZoneScoped;
   tiles.resize({0, 0}); // keep reserved
 
   entityDrawables.clear();

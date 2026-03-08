@@ -5,6 +5,10 @@
 #include "StarAssets.hpp"
 #include "StarJsonExtra.hpp"
 
+#define TRACY_ENABLE
+#define TRACY_DELAYED_INIT
+#include "tracy/Tracy.hpp"
+
 namespace Star {
 
 WorldPainter::WorldPainter() {
@@ -50,6 +54,7 @@ void WorldPainter::update(float dt) {
 }
 
 void WorldPainter::render(WorldRenderData& renderData, function<bool()> lightWaiter) {
+  ZoneScoped;
   m_camera.setScreenSize(m_renderer->screenSize());
   m_camera.setTargetPixelRatio(Root::singleton().configuration()->get("zoomLevel").toFloat());
 
@@ -115,6 +120,7 @@ void WorldPainter::render(WorldRenderData& renderData, function<bool()> lightWai
 
   auto entityDrawableIterator = entityDrawables.begin();
   auto renderEntitiesUntil = [this, &entityDrawables, &entityDrawableIterator](Maybe<EntityRenderLayer> until) {
+    ZoneScoped;
     while (true) {
       if (entityDrawableIterator == entityDrawables.end())
         break;

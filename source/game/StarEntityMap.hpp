@@ -2,6 +2,7 @@
 
 #include "StarSpatialHash2D.hpp"
 #include "StarEntity.hpp"
+#include "StarWorkerPool.hpp"
 
 namespace Star {
 
@@ -128,6 +129,8 @@ private:
   EntityId m_endIdSpace;
 
   List<SpatialMap::Entry const*> m_entrySortBuffer;
+
+  mutable WorkerPool m_workerPool;
 };
 
 template <typename EntityT>

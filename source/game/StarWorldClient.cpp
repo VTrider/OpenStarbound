@@ -22,6 +22,10 @@
 #include "StarInspectableEntity.hpp"
 #include "StarCurve25519.hpp"
 
+#define TRACY_ENABLE
+#define TRACY_DELAYED_INIT
+#include "tracy/Tracy.hpp"
+
 namespace Star {
 
 const std::string SECRET_BROADCAST_PUBLIC_KEY = "SecretBroadcastPublicKey";
@@ -462,6 +466,7 @@ WorldClientState& WorldClient::clientState() {
 }
 
 void WorldClient::render(WorldRenderData& renderData, unsigned bufferTiles) {
+  ZoneScoped;
   if (!m_lightingThread && m_asyncLighting)
     m_lightingThread = Thread::invoke("WorldClient::lightingMain", mem_fn(&WorldClient::lightingMain), this);
 
@@ -539,6 +544,7 @@ void WorldClient::render(WorldRenderData& renderData, unsigned bufferTiles) {
         directives = &globalDirectives.get();
   }
   m_entityMap->forAllEntities([&](EntityPtr const& entity) {
+    ZoneScoped;
       if (m_startupHiddenEntities.contains(entity->entityId()))
         return;
 
@@ -620,19 +626,20 @@ void WorldClient::render(WorldRenderData& renderData, unsigned bufferTiles) {
       renderTile.foregroundModHueShift = clientTile.foregroundModHueShift;
       renderTile.foregroundColorVariant = clientTile.foregroundColorVariant;
       renderTile.foregroundDamageType = clientTile.foregroundDamage.damageType();
-      renderTile.foregroundDamageLevel = floatToByte(clientTile.foregroundDamage.damageEffectPercentage());
+       renderTile.foregroundDamageLevel = floatToByte(clientTile.foregroundDamage.damageEffectPercentage());
 
       renderTile.backgroundHueShift = clientTile.backgroundHueShift;
       renderTile.backgroundModHueShift = clientTile.backgroundModHueShift;
       renderTile.backgroundColorVariant = clientTile.backgroundColorVariant;
       renderTile.backgroundDamageType = clientTile.backgroundDamage.damageType();
-      renderTile.backgroundDamageLevel = floatToByte(clientTile.backgroundDamage.damageEffectPercentage());
+       renderTile.backgroundDamageLevel = floatToByte(clientTile.backgroundDamage.damageEffectPercentage());
 
       renderTile.liquidId = clientTile.liquid.liquid;
       renderTile.liquidLevel = floatToByte(clientTile.liquid.level);
     });
 
   for (auto& pair : m_predictedTiles) {
+    ZoneScopedN("predictedTiles");
     Vec2I tileArrayPos = m_geometry.diff(pair.first, renderData.tileMinPosition);
     if (tileArrayPos[0] >= 0 && tileArrayPos[0] < (int)renderData.tiles.size(0) && tileArrayPos[1] >= 0 && tileArrayPos[1] < (int)renderData.tiles.size(1)) {
       RenderTile& renderTile = renderData.tiles(tileArrayPos[0], tileArrayPos[1]);
@@ -654,6 +661,7 @@ void WorldClient::render(WorldRenderData& renderData, unsigned bufferTiles) {
   }
 
   for (auto const& previewTile : m_previewTiles) {
+    ZoneScopedN("previewTiles");
     Vec2I tileArrayPos = m_geometry.diff(previewTile.position, renderData.tileMinPosition);
     if (tileArrayPos[0] >= 0 && tileArrayPos[0] < (int)renderData.tiles.size(0) && tileArrayPos[1] >= 0 && tileArrayPos[1] < (int)renderData.tiles.size(1)) {
       RenderTile& renderTile = renderData.tiles(tileArrayPos[0], tileArrayPos[1]);
@@ -1700,6 +1708,7 @@ RpcPromise<InteractAction> WorldClient::interact(InteractRequest const& request)
 }
 
 void WorldClient::lightingTileGather() {
+  ZoneScoped;
   int64_t start = Time::monotonicMicroseconds();
   Vec3F environmentLight = m_sky->environmentLight().toRgbF();
   float undergroundLevel = m_worldTemplate->undergroundLevel();
@@ -1708,7 +1717,7 @@ void WorldClient::lightingTileGather() {
 
   // Each column in tileEvalColumns is guaranteed to be no larger than the sector size.
 
-  m_tileArray->tileEvalColumns(m_lightingCalculator.calculationRegion(), [&](Vec2I const& pos, ClientTile const* column, size_t ySize) {
+  m_tileArray->tileEvalColumnsParallel(m_lightingCalculator.calculationRegion(), [&](Vec2I const& pos, ClientTile const* column, size_t ySize) {
     size_t baseIndex = m_lightingCalculator.baseIndexFor(pos);
     for (size_t y = 0; y < ySize; ++y) {
       auto& tile = column[y];
@@ -1731,6 +1740,7 @@ void WorldClient::lightingTileGather() {
 }
 
 void WorldClient::lightingCalc() {
+  ZoneScoped;
   MutexLocker prepLocker(m_lightMapPrepMutex);
   if (!m_pendingLightReady.load())
     return;
@@ -1781,6 +1791,7 @@ void WorldClient::lightingCalc() {
 }
 
 void WorldClient::lightingMain() {
+  tracy::SetThreadName("lightingThread");
   MutexLocker condLocker(m_lightingMutex);
   while (true) {
     m_lightingCond.wait(m_lightingMutex);

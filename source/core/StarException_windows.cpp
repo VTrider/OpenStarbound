@@ -17,7 +17,7 @@ struct WindowsSymInitializer {
       fatalError("SymInitialize failed", false);
   }
 };
-static WindowsSymInitializer g_windowsSymInitializer;
+// static WindowsSymInitializer g_windowsSymInitializer;
 
 struct DbgHelpLock {
   DbgHelpLock() {

@@ -39,6 +39,7 @@ void EnvironmentPainter::update(float dt) {
 }
 
 void EnvironmentPainter::renderStars(float pixelRatio, Vec2F const& screenSize, SkyRenderData const& sky) {
+  ZoneScoped;
   float nightSkyAlpha = 1.0f - min(sky.dayLevel, sky.skyAlpha);
   if (nightSkyAlpha <= 0.0f)
     return;
@@ -94,6 +95,7 @@ void EnvironmentPainter::renderStars(float pixelRatio, Vec2F const& screenSize, 
 }
 
 void EnvironmentPainter::renderDebrisFields(float pixelRatio, Vec2F const& screenSize, SkyRenderData const& sky) {
+  ZoneScoped;
   if (!sky.settings)
     return;
 
@@ -147,6 +149,7 @@ void EnvironmentPainter::renderDebrisFields(float pixelRatio, Vec2F const& scree
 }
 
 void EnvironmentPainter::renderBackOrbiters(float pixelRatio, Vec2F const& screenSize, SkyRenderData const& sky) {
+  ZoneScoped;
   for (auto const& orbiter : sky.backOrbiters(screenSize / pixelRatio))
     drawOrbiter(pixelRatio, screenSize, sky, orbiter);
 
@@ -154,6 +157,7 @@ void EnvironmentPainter::renderBackOrbiters(float pixelRatio, Vec2F const& scree
 }
 
 void EnvironmentPainter::renderPlanetHorizon(float pixelRatio, Vec2F const& screenSize, SkyRenderData const& sky) {
+  ZoneScoped;
   auto planetHorizon = sky.worldHorizon(screenSize / pixelRatio);
   if (planetHorizon.empty())
     return;
@@ -206,6 +210,7 @@ void EnvironmentPainter::renderPlanetHorizon(float pixelRatio, Vec2F const& scre
 }
 
 void EnvironmentPainter::renderFrontOrbiters(float pixelRatio, Vec2F const& screenSize, SkyRenderData const& sky) {
+  ZoneScoped;
   for (auto const& orbiter : sky.frontOrbiters(screenSize / pixelRatio))
     drawOrbiter(pixelRatio, screenSize, sky, orbiter);
 
@@ -213,6 +218,7 @@ void EnvironmentPainter::renderFrontOrbiters(float pixelRatio, Vec2F const& scre
 }
 
 void EnvironmentPainter::renderSky(Vec2F const& screenSize, SkyRenderData const& sky) {
+  ZoneScoped;
   auto& primitives = m_renderer->immediatePrimitives();
   primitives.emplace_back(std::in_place_type_t<RenderQuad>(), TexturePtr(),
       RenderVertex{Vec2F(0, 0), Vec2F(), sky.bottomRectColor.toRgba(), 0.0f},
@@ -230,6 +236,7 @@ void EnvironmentPainter::renderSky(Vec2F const& screenSize, SkyRenderData const&
 // TODO: Fix this to work with decimal zoom levels. Currently, the clouds shake rapidly when interpolating between zoom levels.
 void EnvironmentPainter::renderParallaxLayers(
     Vec2F parallaxWorldPosition, WorldCamera const& camera, ParallaxLayers const& layers, SkyRenderData const& sky) {
+  ZoneScoped;
 
   // Note: the "parallax space" referenced below is a grid where the scale of each cell is the size of the parallax image
 

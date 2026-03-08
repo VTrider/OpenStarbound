@@ -1,11 +1,15 @@
 #include "StarCellularLightArray.hpp"
 #include "StarInterpolation.hpp"
+
+#include "GL/glew.h"
+
 // just specializing these in a cpp file so I can iterate on them without recompiling like 40 files!!
 
 namespace Star {
 
 template <>
 void CellularLightArray<ScalarLightTraits>::calculatePointLighting(size_t xmin, size_t ymin, size_t xmax, size_t ymax) {
+  ZoneScoped;
   float pointPerBlockObstacleAttenuation = 1.0f / m_pointMaxObstacle;
   float pointPerBlockAirAttenuation = 1.0f / m_pointMaxAir;
 
@@ -77,8 +81,10 @@ void CellularLightArray<ScalarLightTraits>::calculatePointLighting(size_t xmin, 
   }
 }
 
+
 template <>
 void CellularLightArray<ColoredLightTraits>::calculatePointLighting(size_t xmin, size_t ymin, size_t xmax, size_t ymax) {
+  ZoneScoped;
   float pointPerBlockObstacleAttenuation = 1.0f / m_pointMaxObstacle;
   float pointPerBlockAirAttenuation = 1.0f / m_pointMaxAir;
 
@@ -150,4 +156,135 @@ void CellularLightArray<ColoredLightTraits>::calculatePointLighting(size_t xmin,
   }
 }
 
+template <>
+void CellularLightArray<ScalarLightTraits>::calculateLightSpread(size_t xMin, size_t yMin, size_t xMax, size_t yMax) {
+  ZoneScoped;
+  starAssert(m_width > 0 && m_height > 0);
+
+  float dropoffAir = 1.0f / m_spreadMaxAir;
+  float dropoffObstacle = 1.0f / m_spreadMaxObstacle;
+  float dropoffAirDiag = 1.0f / m_spreadMaxAir * Constants::sqrt2;
+  float dropoffObstacleDiag = 1.0f / m_spreadMaxObstacle * Constants::sqrt2;
+
+  // enlarge x/y min/max taking into ambient spread of light
+  xMin = xMin - min(xMin, (size_t)ceil(m_spreadMaxAir));
+  yMin = yMin - min(yMin, (size_t)ceil(m_spreadMaxAir));
+  xMax = min(m_width, xMax + (size_t)ceil(m_spreadMaxAir));
+  yMax = min(m_height, yMax + (size_t)ceil(m_spreadMaxAir));
+
+  for (unsigned p = 0; p < m_spreadPasses; ++p) {
+    // Spread right and up and diag up right / diag down right
+    for (size_t x = xMin + 1; x < xMax - 1; ++x) {
+      size_t xCellOffset = x * m_height;
+      size_t xRightCellOffset = (x + 1) * m_height;
+
+      for (size_t y = yMin + 1; y < yMax - 1; ++y) {
+        auto cell = cellAtIndex(xCellOffset + y);
+        auto& cellRight = cellAtIndex(xRightCellOffset + y);
+        auto& cellUp = cellAtIndex(xCellOffset + y + 1);
+        auto& cellRightUp = cellAtIndex(xRightCellOffset + y + 1);
+        auto& cellRightDown = cellAtIndex(xRightCellOffset + y - 1);
+
+        float straightDropoff = cell.obstacle ? dropoffObstacle : dropoffAir;
+        float diagDropoff = cell.obstacle ? dropoffObstacleDiag : dropoffAirDiag;
+
+        cellRight.light = ScalarLightTraits::spread(cell.light, cellRight.light, straightDropoff);
+        cellUp.light = ScalarLightTraits::spread(cell.light, cellUp.light, straightDropoff);
+
+        cellRightUp.light = ScalarLightTraits::spread(cell.light, cellRightUp.light, diagDropoff);
+        cellRightDown.light = ScalarLightTraits::spread(cell.light, cellRightDown.light, diagDropoff);
+      }
+    }
+
+    // Spread left and down and diag up left / diag down left
+    for (size_t x = xMax - 2; x > xMin; --x) {
+      size_t xCellOffset = x * m_height;
+      size_t xLeftCellOffset = (x - 1) * m_height;
+
+      for (size_t y = yMax - 2; y > yMin; --y) {
+        auto cell = cellAtIndex(xCellOffset + y);
+        auto& cellLeft = cellAtIndex(xLeftCellOffset + y);
+        auto& cellDown = cellAtIndex(xCellOffset + y - 1);
+        auto& cellLeftUp = cellAtIndex(xLeftCellOffset + y + 1);
+        auto& cellLeftDown = cellAtIndex(xLeftCellOffset + y - 1);
+
+        float straightDropoff = cell.obstacle ? dropoffObstacle : dropoffAir;
+        float diagDropoff = cell.obstacle ? dropoffObstacleDiag : dropoffAirDiag;
+
+        cellLeft.light = ScalarLightTraits::spread(cell.light, cellLeft.light, straightDropoff);
+        cellDown.light = ScalarLightTraits::spread(cell.light, cellDown.light, straightDropoff);
+
+        cellLeftUp.light = ScalarLightTraits::spread(cell.light, cellLeftUp.light, diagDropoff);
+        cellLeftDown.light = ScalarLightTraits::spread(cell.light, cellLeftDown.light, diagDropoff);
+      }
+    }
+  }
+}
+
+template <>
+void CellularLightArray<ColoredLightTraits>::calculateLightSpread(size_t xMin, size_t yMin, size_t xMax, size_t yMax) {
+  ZoneScoped;
+  starAssert(m_width > 0 && m_height > 0);
+  float dropoffAir = 1.0f / m_spreadMaxAir;
+  float dropoffObstacle = 1.0f / m_spreadMaxObstacle;
+  float dropoffAirDiag = 1.0f / m_spreadMaxAir * Constants::sqrt2;
+  float dropoffObstacleDiag = 1.0f / m_spreadMaxObstacle * Constants::sqrt2;
+
+
+
+  // enlarge x/y min/max taking into ambient spread of light
+  xMin = xMin - min(xMin, (size_t)ceil(m_spreadMaxAir));
+  yMin = yMin - min(yMin, (size_t)ceil(m_spreadMaxAir));
+  xMax = min(m_width, xMax + (size_t)ceil(m_spreadMaxAir));
+  yMax = min(m_height, yMax + (size_t)ceil(m_spreadMaxAir));
+
+
+  for (unsigned p = 0; p < m_spreadPasses; ++p) {
+    // Spread right and up and diag up right / diag down right
+    for (size_t x = xMin + 1; x < xMax - 1; ++x) {
+      size_t xCellOffset = x * m_height;
+      size_t xRightCellOffset = (x + 1) * m_height;
+
+      for (size_t y = yMin + 1; y < yMax - 1; ++y) {
+        auto cell = cellAtIndex(xCellOffset + y);
+        auto& cellRight = cellAtIndex(xRightCellOffset + y);
+        auto& cellUp = cellAtIndex(xCellOffset + y + 1);
+        auto& cellRightUp = cellAtIndex(xRightCellOffset + y + 1);
+        auto& cellRightDown = cellAtIndex(xRightCellOffset + y - 1);
+
+        float straightDropoff = cell.obstacle ? dropoffObstacle : dropoffAir;
+        float diagDropoff = cell.obstacle ? dropoffObstacleDiag : dropoffAirDiag;
+
+        cellRight.light = ColoredLightTraits::spread(cell.light, cellRight.light, straightDropoff);
+        cellUp.light = ColoredLightTraits::spread(cell.light, cellUp.light, straightDropoff);
+
+        cellRightUp.light = ColoredLightTraits::spread(cell.light, cellRightUp.light, diagDropoff);
+        cellRightDown.light = ColoredLightTraits::spread(cell.light, cellRightDown.light, diagDropoff);
+      }
+    }
+
+    // Spread left and down and diag up left / diag down left
+    for (size_t x = xMax - 2; x > xMin; --x) {
+      size_t xCellOffset = x * m_height;
+      size_t xLeftCellOffset = (x - 1) * m_height;
+
+      for (size_t y = yMax - 2; y > yMin; --y) {
+        auto cell = cellAtIndex(xCellOffset + y);
+        auto& cellLeft = cellAtIndex(xLeftCellOffset + y);
+        auto& cellDown = cellAtIndex(xCellOffset + y - 1);
+        auto& cellLeftUp = cellAtIndex(xLeftCellOffset + y + 1);
+        auto& cellLeftDown = cellAtIndex(xLeftCellOffset + y - 1);
+
+        float straightDropoff = cell.obstacle ? dropoffObstacle : dropoffAir;
+        float diagDropoff = cell.obstacle ? dropoffObstacleDiag : dropoffAirDiag;
+
+        cellLeft.light = ColoredLightTraits::spread(cell.light, cellLeft.light, straightDropoff);
+        cellDown.light = ColoredLightTraits::spread(cell.light, cellDown.light, straightDropoff);
+
+        cellLeftUp.light = ColoredLightTraits::spread(cell.light, cellLeftUp.light, diagDropoff);
+        cellLeftDown.light = ColoredLightTraits::spread(cell.light, cellLeftDown.light, diagDropoff);
+      }
+    }
+  }
+}
 }

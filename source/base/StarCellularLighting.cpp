@@ -1,5 +1,9 @@
 #include "StarCellularLighting.hpp"
 
+#define TRACY_ENABLE
+#define TRACY_DELAYED_INIT
+#include "tracy/Tracy.hpp"
+
 namespace Star {
 
 Lightmap::Lightmap() : m_width(0), m_height(0) {}
@@ -146,6 +150,7 @@ void CellularLightingCalculator::calculate(Image& output) {
 }
 
 void CellularLightingCalculator::calculate(Lightmap& output) {
+  ZoneScoped;
   Vec2S arrayMin = Vec2S(m_queryRegion.min() - m_calculationRegion.min());
   Vec2S arrayMax = Vec2S(m_queryRegion.max() - m_calculationRegion.min());
 
@@ -159,6 +164,7 @@ void CellularLightingCalculator::calculate(Lightmap& output) {
   float brightnessLimit = m_config.getFloat("brightnessLimit");
 
   if (m_monochrome) {
+    ZoneScopedN("monochromeOutputSet");
     for (size_t x = arrayMin[0]; x < arrayMax[0]; ++x) {
       for (size_t y = arrayMin[1]; y < arrayMax[1]; ++y) {
         auto light = min(m_lightArray.right().getLight(x, y), brightnessLimit);
@@ -166,6 +172,7 @@ void CellularLightingCalculator::calculate(Lightmap& output) {
       }
     }
   } else {
+    ZoneScopedN("coloredOutputSet");
     for (size_t x = arrayMin[0]; x < arrayMax[0]; ++x) {
       for (size_t y = arrayMin[1]; y < arrayMax[1]; ++y) {
         auto light = m_lightArray.left().getLight(x, y);

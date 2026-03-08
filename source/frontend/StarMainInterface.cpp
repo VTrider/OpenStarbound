@@ -61,6 +61,10 @@
 #include "StarNpc.hpp"
 #include "StarCharSelection.hpp"
 
+#define TRACY_ENABLE
+#define TRACY_DELAYED_INIT
+#include "tracy/Tracy.hpp"
+
 namespace Star {
 
 GuiMessage::GuiMessage() : message(), cooldown(), springState() {}
@@ -856,6 +860,7 @@ void MainInterface::renderInWorldElements() {
 }
 
 void MainInterface::render() {
+  // ZoneScoped;
   if (m_disableHud)
     return;
 

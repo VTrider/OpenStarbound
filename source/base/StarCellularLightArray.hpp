@@ -3,6 +3,10 @@
 #include "StarList.hpp"
 #include "StarVector.hpp"
 
+#define TRACY_ENABLE
+#define TRACY_DELAYED_INIT
+#include "tracy/Tracy.hpp"
+
 namespace Star {
 
 // Operations for simple scalar lighting.
@@ -293,6 +297,7 @@ auto CellularLightArray<LightTraits>::cellAtIndex(size_t index) -> Cell & {
 
 template <typename LightTraits>
 void CellularLightArray<LightTraits>::calculate(size_t xMin, size_t yMin, size_t xMax, size_t yMax) {
+  ZoneScoped;
   setSpreadLightingPoints();
   calculateLightSpread(xMin, yMin, xMax, yMax);
   calculatePointLighting(xMin, yMin, xMax, yMax);
@@ -300,6 +305,7 @@ void CellularLightArray<LightTraits>::calculate(size_t xMin, size_t yMin, size_t
 
 template <typename LightTraits>
 void CellularLightArray<LightTraits>::setSpreadLightingPoints() {
+  ZoneScoped;
   for (SpreadLight const& light : m_spreadLights) {
     // - 0.5f to correct for lights being on the grid corners and not center
     int minX = floor(light.position[0] - 0.5f);
@@ -333,70 +339,6 @@ void CellularLightArray<LightTraits>::setSpreadLightingPoints() {
 
     if (maxX >= 0 && maxX < (int)m_width && maxY >= 0 && maxY < (int)m_height)
       setLight(maxX, maxY, LightTraits::max(getLight(maxX, maxY), LightTraits::subtract(light.value, oneBlockAtt * (2.0f - (xdist) - (ydist)))));
-  }
-}
-
-template <typename LightTraits>
-void CellularLightArray<LightTraits>::calculateLightSpread(size_t xMin, size_t yMin, size_t xMax, size_t yMax) {
-  starAssert(m_width > 0 && m_height > 0);
-
-  float dropoffAir = 1.0f / m_spreadMaxAir;
-  float dropoffObstacle = 1.0f / m_spreadMaxObstacle;
-  float dropoffAirDiag = 1.0f / m_spreadMaxAir * Constants::sqrt2;
-  float dropoffObstacleDiag = 1.0f / m_spreadMaxObstacle * Constants::sqrt2;
-
-  // enlarge x/y min/max taking into ambient spread of light
-  xMin = xMin - min(xMin, (size_t)ceil(m_spreadMaxAir));
-  yMin = yMin - min(yMin, (size_t)ceil(m_spreadMaxAir));
-  xMax = min(m_width, xMax + (size_t)ceil(m_spreadMaxAir));
-  yMax = min(m_height, yMax + (size_t)ceil(m_spreadMaxAir));
-
-  for (unsigned p = 0; p < m_spreadPasses; ++p) {
-    // Spread right and up and diag up right / diag down right
-    for (size_t x = xMin + 1; x < xMax - 1; ++x) {
-      size_t xCellOffset = x * m_height;
-      size_t xRightCellOffset = (x + 1) * m_height;
-
-      for (size_t y = yMin + 1; y < yMax - 1; ++y) {
-        auto cell = cellAtIndex(xCellOffset + y);
-        auto& cellRight = cellAtIndex(xRightCellOffset + y);
-        auto& cellUp = cellAtIndex(xCellOffset + y + 1);
-        auto& cellRightUp = cellAtIndex(xRightCellOffset + y + 1);
-        auto& cellRightDown = cellAtIndex(xRightCellOffset + y - 1);
-
-        float straightDropoff = cell.obstacle ? dropoffObstacle : dropoffAir;
-        float diagDropoff = cell.obstacle ? dropoffObstacleDiag : dropoffAirDiag;
-
-        cellRight.light = LightTraits::spread(cell.light, cellRight.light, straightDropoff);
-        cellUp.light = LightTraits::spread(cell.light, cellUp.light, straightDropoff);
-
-        cellRightUp.light = LightTraits::spread(cell.light, cellRightUp.light, diagDropoff);
-        cellRightDown.light = LightTraits::spread(cell.light, cellRightDown.light, diagDropoff);
-      }
-    }
-
-    // Spread left and down and diag up left / diag down left
-    for (size_t x = xMax - 2; x > xMin; --x) {
-      size_t xCellOffset = x * m_height;
-      size_t xLeftCellOffset = (x - 1) * m_height;
-
-      for (size_t y = yMax - 2; y > yMin; --y) {
-        auto cell = cellAtIndex(xCellOffset + y);
-        auto& cellLeft = cellAtIndex(xLeftCellOffset + y);
-        auto& cellDown = cellAtIndex(xCellOffset + y - 1);
-        auto& cellLeftUp = cellAtIndex(xLeftCellOffset + y + 1);
-        auto& cellLeftDown = cellAtIndex(xLeftCellOffset + y - 1);
-
-        float straightDropoff = cell.obstacle ? dropoffObstacle : dropoffAir;
-        float diagDropoff = cell.obstacle ? dropoffObstacleDiag : dropoffAirDiag;
-
-        cellLeft.light = LightTraits::spread(cell.light, cellLeft.light, straightDropoff);
-        cellDown.light = LightTraits::spread(cell.light, cellDown.light, straightDropoff);
-
-        cellLeftUp.light = LightTraits::spread(cell.light, cellLeftUp.light, diagDropoff);
-        cellLeftDown.light = LightTraits::spread(cell.light, cellLeftDown.light, diagDropoff);
-      }
-    }
   }
 }
 

@@ -27,18 +27,19 @@ struct WorldTile {
   bool isColliding(CollisionSet const& collisionSet) const;
 
   MaterialId foreground;
-  MaterialHue foregroundHueShift;
   ModId foregroundMod;
+  MaterialHue foregroundHueShift;
   MaterialHue foregroundModHueShift;
   MaterialColorVariant foregroundColorVariant;
 
   MaterialId background;
-  MaterialHue backgroundHueShift;
   ModId backgroundMod;
+  MaterialHue backgroundHueShift;
   MaterialHue backgroundModHueShift;
   MaterialColorVariant backgroundColorVariant;
 
-  CollisionKind collision;
+  LiquidLevel liquid;
+
 
   bool collisionCacheDirty;
   StaticList<CollisionBlock, CollisionGenerator::MaximumCollisionsPerSpace> collisionCache;
@@ -48,12 +49,13 @@ struct WorldTile {
 
   bool biomeTransition;
 
-  TileDamageStatus foregroundDamage;
-  TileDamageStatus backgroundDamage;
-
   // If block is part of a dungeon then that affects spawns/drops,
   // as well as governing block protection
   DungeonId dungeonId;
+
+  CollisionKind collision;
+  TileDamageStatus backgroundDamage;
+  TileDamageStatus foregroundDamage;
 };
 
 struct ServerTile : public WorldTile {
@@ -99,7 +101,6 @@ struct ClientTile : public WorldTile {
   bool backgroundLightTransparent;
   bool foregroundLightTransparent;
 
-  LiquidLevel liquid;
 
   float gravity;
 };

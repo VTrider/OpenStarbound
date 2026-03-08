@@ -55,6 +55,7 @@ void TilePainter::adjustLighting(WorldRenderData& renderData) const {
 }
 
 void TilePainter::setup(WorldCamera const& camera, WorldRenderData& renderData) {
+  ZoneScoped;
   auto cameraCenter = camera.centerWorldPosition();
   if (m_lastCameraCenter)
     m_cameraPan = renderData.geometry.diff(cameraCenter, *m_lastCameraCenter);
@@ -64,6 +65,7 @@ void TilePainter::setup(WorldCamera const& camera, WorldRenderData& renderData) 
   RectI chunkRange = RectI::integral(RectF(camera.worldTileRect().padded(1)).scaled(1.0f / RenderChunkSize));
 
   size_t chunks = chunkRange.volume();
+
   m_pendingTerrainChunks.resize(chunks);
   m_pendingLiquidChunks.resize(chunks);
 
@@ -198,6 +200,7 @@ shared_ptr<TilePainter::TerrainChunk const> TilePainter::getTerrainChunk(WorldRe
 }
 
 shared_ptr<TilePainter::LiquidChunk const> TilePainter::getLiquidChunk(WorldRenderData& renderData, Vec2I chunkIndex) {
+  ZoneScoped;
   pair<Vec2I, ChunkHash> chunkKey = {chunkIndex, liquidChunkHash(renderData, chunkIndex)};
   return m_liquidChunkCache.get(chunkKey, [&](auto const&) {
       HashMap<LiquidId, List<RenderPrimitive>> liquidPrimitives;

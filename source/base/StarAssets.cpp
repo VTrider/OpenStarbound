@@ -22,6 +22,10 @@
 #include "StarImageLuaBindings.hpp"
 #include "StarUtilityLuaBindings.hpp"
 
+#define TRACY_ENABLE
+#define TRACY_DELAYED_INIT
+#include "tracy/Tracy.hpp"
+
 namespace Star {
 
 // if a ptr is returned, can be optionally used to format an error
@@ -534,6 +538,7 @@ CaseInsensitiveStringSet const& Assets::scanExtension(String const& extension) c
 }
 
 Json Assets::json(String const& path) const {
+  ZoneScoped;
   auto components = AssetPath::split(path);
   validatePath(components, true, false);
 
