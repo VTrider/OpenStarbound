@@ -535,6 +535,7 @@ void MainInterface::handleInteractAction(InteractAction interactAction) {
 }
 
 void MainInterface::preUpdate(float) {
+  ZoneScoped;
   auto player = m_client->mainPlayer();
   if (!m_client->paused())
     player->aim(cursorWorldPosition());
@@ -548,6 +549,7 @@ void MainInterface::preUpdate(float) {
 }
 
 void MainInterface::update(float dt) {
+  ZoneScoped;
   m_paneManager.update(dt);
   m_cursor.update(dt);
 
@@ -850,6 +852,7 @@ void MainInterface::update(float dt) {
 }
 
 void MainInterface::renderInWorldElements() {
+  ZoneScoped;
   if (m_disableHud)
     return;
 
@@ -860,7 +863,7 @@ void MainInterface::renderInWorldElements() {
 }
 
 void MainInterface::render() {
-  // ZoneScoped;
+  ZoneScoped;
   if (m_disableHud)
     return;
 
@@ -1082,6 +1085,7 @@ Vec2F MainInterface::mainBarPosition() const {
 }
 
 void MainInterface::renderBreath() {
+  ZoneScoped;
   auto assets = Root::singleton().assets();
   auto imgMetadata = Root::singleton().imageMetadataDatabase();
 
@@ -1113,6 +1117,7 @@ void MainInterface::renderBreath() {
 }
 
 void MainInterface::renderMessages() {
+  ZoneScoped;
   if (m_messages.empty())
     return;
 
@@ -1149,6 +1154,7 @@ void MainInterface::renderMessages() {
 }
 
 void MainInterface::renderMonsterHealthBar() {
+  ZoneScoped;
   auto assets = Root::singleton().assets();
   auto imgMetadata = Root::singleton().imageMetadataDatabase();
   if (m_lastMouseoverTarget != NullEntityId && !m_stickyTargetingTimer.ready()) {
@@ -1209,6 +1215,7 @@ void MainInterface::renderMonsterHealthBar() {
 }
 
 void MainInterface::renderSpecialDamageBar() {
+  ZoneScoped;
   // NOTE: num and i including EVERYTHING will leave empty spaces for nonexistent entities in the list. Shouldn't persist for more than a frame.
   size_t num = m_specialDamageBars.size();
   if (num == 0) return;
@@ -1268,6 +1275,7 @@ void MainInterface::renderSpecialDamageBar() {
 }
 
 void MainInterface::renderMainBar() {
+  ZoneScoped;
   Vec2F barPos = mainBarPosition();
 
   m_cursorTooltip = {};
@@ -1409,10 +1417,12 @@ void MainInterface::renderMainBar() {
 }
 
 void MainInterface::renderWindows() {
+  ZoneScoped;
   m_paneManager.render();
 }
 
 void MainInterface::renderDebug() {
+  ZoneScoped;
   if (!isDebugDisplayed()) {
     SpatialLogger::clear();
     m_debugTextRect = RectF::null();
@@ -1537,6 +1547,7 @@ void MainInterface::updateCursor() {
 }
 
 void MainInterface::renderCursor() {
+  ZoneScoped;
   // if we're currently playing a cinematic, we should not render the mouse.
   if (m_cinematicOverlay && !m_cinematicOverlay->completed())
     return m_guiContext->applicationController()->setCursorVisible(false);

@@ -6,6 +6,10 @@
 #include "StarColor.hpp"
 #include "StarWorld.hpp"
 
+#define TRACY_ENABLE
+#define TRACY_DELAYED_INIT
+#include "tracy/Tracy.hpp"
+
 namespace Star {
 
 ConnectionId RemoteHitRequest::destinationConnection() const {
@@ -59,6 +63,7 @@ DataStream& operator>>(DataStream& ds, RemoteDamageNotification& damageNotificat
 DamageManager::DamageManager(World* world, ConnectionId connectionId) : m_world(world), m_connectionId(connectionId) {}
 
 void DamageManager::update(float dt) {
+  ZoneScoped;
   float const DefaultDamageTimeout = 1.0f;
 
   auto damageIt = makeSMutableMapIterator(m_recentEntityDamages);

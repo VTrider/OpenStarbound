@@ -30,6 +30,13 @@ public:
   void cleanup(int64_t textureTimeout);
 
 private:
+  class StarInstanceData {
+  public:
+    Vec2F position;
+    float frameOffset;
+    uint16_t type;
+  };
+
   static float const SunriseTime;
   static float const SunsetTime;
   static float const SunFadeRate;

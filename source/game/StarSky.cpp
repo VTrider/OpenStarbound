@@ -116,6 +116,7 @@ void Sky::stateUpdate() {
 }
 
 void Sky::update(double dt) {
+  ZoneScoped;
   if (m_referenceClock) {
     m_time = m_referenceClock->time();
     if (!m_clockTrackingTime) {

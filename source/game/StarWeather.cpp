@@ -8,6 +8,10 @@
 #include "StarProjectile.hpp"
 #include "StarBiomeDatabase.hpp"
 
+#define TRACY_ENABLE
+#define TRACY_DELAYED_INIT
+#include "tracy/Tracy.hpp"
+
 namespace Star {
 
 ServerWeather::ServerWeather() {
@@ -332,6 +336,7 @@ void ClientWeather::setVisibleRegion(RectI visibleRegion) {
 }
 
 void ClientWeather::update(double dt) {
+  ZoneScoped;
   m_currentTime += dt;
 
   if (m_currentWeatherIndex == NPos) {

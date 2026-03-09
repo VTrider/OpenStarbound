@@ -28,6 +28,7 @@ void ParticleManager::setUndergroundLevel(float undergroundLevel) {
 }
 
 void ParticleManager::update(float dt, RectF const& cullRegion, float wind) {
+  ZoneScoped;
   if (!m_tileSectorArray)
     return;
 

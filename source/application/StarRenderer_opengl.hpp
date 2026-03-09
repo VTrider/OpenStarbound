@@ -47,6 +47,8 @@ public:
 
   void flush(Mat3F const& transformation) override;
 
+  void renderInstanced(RenderInstancedBatch const& batch);
+
   void setScreenSize(Vec2U screenSize);
 
   void startFrame();
@@ -255,6 +257,10 @@ private:
 
   List<RenderPrimitive> m_immediatePrimitives;
   shared_ptr<GlRenderBuffer> m_immediateRenderBuffer;
+
+  GLuint m_instancedVertexArray;
+  GLuint m_instancedBuffer;
+  GLuint m_instancedProgram;
 };
 
 }

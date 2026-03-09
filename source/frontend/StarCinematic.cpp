@@ -125,6 +125,7 @@ bool Cinematic::completable() const {
 }
 
 void Cinematic::render() {
+  ZoneScoped;
   if (completed())
     return;
 

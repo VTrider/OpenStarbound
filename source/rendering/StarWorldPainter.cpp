@@ -161,11 +161,15 @@ void WorldPainter::render(WorldRenderData& renderData, function<bool()> lightWai
   if (dimLevel != 0)
     m_renderer->render(renderFlatRect(RectF::withSize({}, Vec2F(m_camera.screenSize())), Vec4B(renderData.dimColor, dimLevel), 0.0f));
 
+  {
+
+  ZoneScopedN("WorldPainter Cleanup");
   int64_t textureTimeout = m_assets->json("/rendering.config:textureTimeout").toInt();
   m_textPainter->cleanup(textureTimeout);
   m_drawablePainter->cleanup(textureTimeout);
   m_environmentPainter->cleanup(textureTimeout);
   m_tilePainter->cleanup();
+  }
 }
 
 void WorldPainter::adjustLighting(WorldRenderData& renderData) {
@@ -173,6 +177,7 @@ void WorldPainter::adjustLighting(WorldRenderData& renderData) {
 }
 
 void WorldPainter::renderParticles(WorldRenderData& renderData, Particle::Layer layer) {
+  ZoneScoped;
   const int textParticleFontSize = m_assets->json("/rendering.config:textParticleFontSize").toInt();
   const RectF particleRenderWindow = RectF::withSize(Vec2F(), Vec2F(m_camera.screenSize())).padded(m_assets->json("/rendering.config:particleRenderWindowPadding").toInt());
 
@@ -246,6 +251,7 @@ void WorldPainter::renderParticles(WorldRenderData& renderData, Particle::Layer 
 }
 
 void WorldPainter::renderBars(WorldRenderData& renderData) {
+  ZoneScoped;
   auto offset = m_entityBarOffset;
   for (auto const& bar : renderData.overheadBars) {
     auto position = bar.entityPosition + offset;
@@ -321,6 +327,7 @@ void WorldPainter::drawDrawable(Drawable drawable) {
 }
 
 void WorldPainter::drawDrawableSet(List<Drawable>& drawables) {
+  ZoneScoped;
   for (Drawable& drawable : drawables)
     drawDrawable(std::move(drawable));
 

@@ -405,6 +405,9 @@ bool SectorArray2D<ElementT, SectorSize>::evalColumnsPriv(
   return true;
 }
 
+// VT: This is about as good as I can get it, I think it's bound by memory bandwidth when it's called with
+// huge width and height in the renderer (tiles, lighting etc.), should probably use compute shader and GPU
+// pipeline in the future.
 template <typename ElementT, size_t SectorSize>
 template <typename Function>
 bool SectorArray2D<ElementT, SectorSize>::evalColumnsPrivPar(
@@ -421,7 +424,10 @@ bool SectorArray2D<ElementT, SectorSize>::evalColumnsPrivPar(
   size_t minYSector = minY / SectorSize;
   size_t maxYSector = (maxY - 1) / SectorSize;
 
+  size_t sectorCount = maxXSector - minXSector + 1;
+
   std::vector<WorkerPoolHandle> futures;
+  futures.reserve(sectorCount);
 
   for (size_t xSector = minXSector; xSector <= maxXSector; ++xSector) {
     size_t minXi = 0;

@@ -218,6 +218,7 @@ SystemWorldClientPtr UniverseClient::systemWorldClient() const {
 }
 
 void UniverseClient::update(float dt) {
+  ZoneScoped;
   auto assets = Root::singleton().assets();
 
   if (!isConnected())

@@ -462,15 +462,18 @@ void ClientApplication::render() {
       });
       LogMap::set("client_render_world_painter", strf(u8"{:05d}\u00b5s", Time::monotonicMicroseconds() - paintStart));
       LogMap::set("client_render_world_total", strf(u8"{:05d}\u00b5s", Time::monotonicMicroseconds() - totalStart));
-      
-      auto size = Vec2F(renderer->screenSize());
-      auto quad = renderFlatRect(RectF::withSize(size / -2, size), Vec4B::filled(0), 0.0f);
-      for (auto& layer : m_postProcessLayers) {
-        if (layer.group ? layer.group->enabled : true) {
-          for (unsigned i = 0; i < layer.passes; i++) {
-            for (auto& effect : layer.effects) {
-              renderer->switchEffectConfig(effect);
-              renderer->render(quad);
+
+      {
+        ZoneScopedN("PostProcess");
+        auto size = Vec2F(renderer->screenSize());
+        auto quad = renderFlatRect(RectF::withSize(size / -2, size), Vec4B::filled(0), 0.0f);
+        for (auto& layer : m_postProcessLayers) {
+          if (layer.group ? layer.group->enabled : true) {
+            for (unsigned i = 0; i < layer.passes; i++) {
+              for (auto& effect : layer.effects) {
+                renderer->switchEffectConfig(effect);
+                renderer->render(quad);
+              }
             }
           }
         }
@@ -1045,6 +1048,7 @@ void ClientApplication::updateTitle(float dt) {
 }
 
 void ClientApplication::updateRunning(float dt) {
+  ZoneScoped;
   try {
     auto& app = appController();
     auto worldClient = m_universeClient->worldClient();
@@ -1124,6 +1128,7 @@ void ClientApplication::updateRunning(float dt) {
     }
 
     if (!m_mainInterface->inputFocus() && !m_cinematicOverlay->suppressInput()) {
+      ZoneScopedN("Input handling");
       m_player->setShifting(isActionTaken(InterfaceAction::PlayerShifting));
 
       if (isActionTaken(InterfaceAction::PlayerRight))
@@ -1183,6 +1188,7 @@ void ClientApplication::updateRunning(float dt) {
         m_cameraZoomDirection = newZoomDirection;
     }
     if (m_cameraZoomDirection != 0) {
+      ZoneScopedN("zoom stuff");
       const float threshold = 0.01f;
       bool goingIn = m_cameraZoomDirection == 1;
       auto config = m_root->configuration();
@@ -1211,6 +1217,7 @@ void ClientApplication::updateRunning(float dt) {
     bool needstoSendVoice = m_voice->send(voiceData, 5000);
 
     auto checkDisconnection = [this]() {
+      ZoneScopedN("checkDisconnection");
       if (!m_universeClient->isConnected()) {
         m_cinematicOverlay->stop();
         String errMessage;
@@ -1338,6 +1345,7 @@ bool ClientApplication::isActionTakenEdge(InterfaceAction action) const {
 }
 
 void ClientApplication::updateCamera(float dt) {
+  ZoneScoped;
   if (!m_universeClient->worldClient())
     return;
 

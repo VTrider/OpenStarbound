@@ -99,6 +99,7 @@ List<EntityId> EntityMap::entityIds() const {
 }
 
 void EntityMap::updateAllEntities(EntityCallback const& callback, function<bool(EntityPtr const&, EntityPtr const&)> sortOrder) {
+  ZoneScoped;
   auto updateEntityInfo = [&](SpatialMap::Entry const& entry) {
     auto const& entity = entry.value;
 

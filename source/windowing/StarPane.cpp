@@ -8,6 +8,10 @@
 #include "StarItemDatabase.hpp"
 #include "StarGuiReader.hpp"
 
+#define TRACY_ENABLE
+#define TRACY_DELAYED_INIT
+#include "tracy/Tracy.hpp"
+
 namespace Star {
 
 EnumMap<PaneAnchor> const PaneAnchorNames{
@@ -421,6 +425,7 @@ GuiReaderPtr Pane::reader() {
 }
 
 void Pane::renderImpl() {
+  ZoneScoped;
   if (m_bgFooter != "")
     m_context->drawInterfaceQuad(m_bgFooter, Vec2F(position()));
 

@@ -122,6 +122,14 @@ public:
 
 typedef Variant<float, int, Vec4F, Vec3F, Vec2F, bool> RenderEffectParameter;
 
+class RenderInstancedBatch {
+public:
+  TexturePtr texture;
+  void const* instanceData;
+  size_t instanceCount;
+  size_t instanceStride;
+};
+
 class Renderer {
 public:
   virtual ~Renderer() = default;
@@ -165,6 +173,8 @@ public:
   virtual void renderBuffer(RenderBufferPtr const& renderBuffer, Mat3F const& transformation = Mat3F::identity()) = 0;
 
   virtual void flush(Mat3F const& transformation = Mat3F::identity()) = 0;
+
+  virtual void renderInstanced(RenderInstancedBatch const& batch) = 0;
 };
 
 }

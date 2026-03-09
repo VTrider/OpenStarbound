@@ -36,6 +36,7 @@ TilePainter::TilePainter(RendererPtr renderer) : TileDrawer() {
 }
 
 void TilePainter::adjustLighting(WorldRenderData& renderData) const {
+  ZoneScoped;
   RectI lightRange = RectI::withSize(renderData.lightMinPosition, Vec2I(renderData.lightMap.size()));
   forEachRenderTile(renderData, lightRange, [&](Vec2I const& pos, RenderTile const& tile) {
       // Only adjust lighting for tiles with liquid above the draw threshold
@@ -80,14 +81,17 @@ void TilePainter::setup(WorldCamera const& camera, WorldRenderData& renderData) 
 }
 
 void TilePainter::renderBackground(WorldCamera const& camera) {
+  ZoneScoped;
   renderTerrainChunks(camera, TerrainLayer::Background);
 }
 
 void TilePainter::renderMidground(WorldCamera const& camera) {
+  ZoneScoped;
   renderTerrainChunks(camera, TerrainLayer::Midground);
 }
 
 void TilePainter::renderLiquid(WorldCamera const& camera) {
+  ZoneScoped;
   Mat3F transformation = Mat3F::identity();
   transformation.translate(-Vec2F(camera.worldTileRect().min()));
   transformation.scale(TilePixels * camera.pixelRatio());
@@ -102,6 +106,7 @@ void TilePainter::renderLiquid(WorldCamera const& camera) {
 }
 
 void TilePainter::renderForeground(WorldCamera const& camera) {
+  ZoneScoped;
   renderTerrainChunks(camera, TerrainLayer::Foreground);
 }
 

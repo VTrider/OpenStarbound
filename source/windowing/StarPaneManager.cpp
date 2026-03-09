@@ -4,6 +4,10 @@
 #include "StarAssets.hpp"
 #include "StarRoot.hpp"
 
+#define TRACY_ENABLE
+#define TRACY_DELAYED_INIT
+#include "tracy/Tracy.hpp"
+
 namespace Star {
 
 EnumMap<PaneLayer> const PaneLayerNames{
@@ -268,6 +272,7 @@ bool PaneManager::sendInputEvent(InputEvent const& event) {
 }
 
 void PaneManager::render() {
+  ZoneScoped;
   if (m_backgroundWidget) {
     auto size = m_backgroundWidget->size();
     m_backgroundWidget->setPosition(Vec2I((windowSize()[0] - size[0]) / 2, (windowSize()[1] - size[1]) / 2));
@@ -351,10 +356,12 @@ void PaneManager::update(float dt) {
 }
 
 Vec2I PaneManager::windowSize() const {
+  ZoneScoped;
   return Vec2I(m_context->windowInterfaceSize());
 }
 
 Vec2I PaneManager::calculatePaneOffset(PanePtr const& pane) const {
+  ZoneScoped;
   Vec2I size = pane->size();
   switch (pane->anchor()) {
     case PaneAnchor::None:
@@ -383,6 +390,7 @@ Vec2I PaneManager::calculatePaneOffset(PanePtr const& pane) const {
 }
 
 Vec2I PaneManager::calculateNewInterfacePosition(PanePtr const& pane, float interfaceScaleRatio) const {
+  ZoneScoped;
   Vec2F position(pane->relativePosition());
   Vec2F size(pane->size());
   Mat3F scale;

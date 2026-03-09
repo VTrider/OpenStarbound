@@ -157,6 +157,7 @@ List<Uuid> PlayerStorage::playerUuidListByName(String const& name, Maybe<Uuid> e
 
 
 Json PlayerStorage::savePlayer(PlayerPtr const& player) {
+  ZoneScoped;
   auto entityFactory = Root::singleton().entityFactory();
   auto versioningDatabase = Root::singleton().versioningDatabase();
 

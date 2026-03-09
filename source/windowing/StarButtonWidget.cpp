@@ -5,6 +5,10 @@
 #include "StarAssets.hpp"
 #include "StarInput.hpp"
 
+#define TRACY_ENABLE
+#define TRACY_DELAYED_INIT
+#include "tracy/Tracy.hpp"
+
 namespace Star {
 
 ButtonWidget::ButtonWidget() {
@@ -48,6 +52,7 @@ ButtonWidget::~ButtonWidget() {
 }
 
 void ButtonWidget::renderImpl() {
+  ZoneScoped;
   if (isPressed() && sustainCallbackOnDownHold()) {
     if (m_callback) {
       auto unlocker = Input::singleton().unlockClipboard();

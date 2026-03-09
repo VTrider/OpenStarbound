@@ -1,5 +1,9 @@
 #include "StarImageWidget.hpp"
 
+#define TRACY_ENABLE
+#define TRACY_DELAYED_INIT
+#include "tracy/Tracy.hpp"
+
 namespace Star {
 
 ImageWidget::ImageWidget(String const& image) {
@@ -14,6 +18,7 @@ ImageWidget::ImageWidget(String const& image) {
 }
 
 void ImageWidget::renderImpl() {
+  ZoneScoped;
   auto screenPos = screenPosition();
   for (auto const& drawable : m_drawables)
     context()->drawDrawable(drawable, Vec2F(screenPos) * context()->interfaceScale() + Vec2F(m_offset), context()->interfaceScale(), Vec4B::filled(255));

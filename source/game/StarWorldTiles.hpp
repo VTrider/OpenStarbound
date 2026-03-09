@@ -28,15 +28,21 @@ struct WorldTile {
 
   MaterialId foreground;
   ModId foregroundMod;
+  MaterialId background;
+  ModId backgroundMod;
   MaterialHue foregroundHueShift;
   MaterialHue foregroundModHueShift;
   MaterialColorVariant foregroundColorVariant;
-
-  MaterialId background;
-  ModId backgroundMod;
   MaterialHue backgroundHueShift;
   MaterialHue backgroundModHueShift;
   MaterialColorVariant backgroundColorVariant;
+
+  TileDamageType foregroundDamageType; // intermediate render field
+  uint8_t foregroundDamageLevel;       // intermediate render field
+  TileDamageType backgroundDamageType; // intermediate render field
+  uint8_t backgroundDamageLevel;       // intermediate render field
+  LiquidId liquidId;
+  uint8_t liquidLevel;
 
   LiquidLevel liquid;
 
@@ -167,22 +173,19 @@ struct PredictedTile {
 struct RenderTile {
   MaterialId foreground;
   ModId foregroundMod;
-
   MaterialId background;
   ModId backgroundMod;
-
   MaterialHue foregroundHueShift;
   MaterialHue foregroundModHueShift;
   MaterialColorVariant foregroundColorVariant;
-  TileDamageType foregroundDamageType;
-  uint8_t foregroundDamageLevel;
-
   MaterialHue backgroundHueShift;
   MaterialHue backgroundModHueShift;
   MaterialColorVariant backgroundColorVariant;
+
+  TileDamageType foregroundDamageType;
+  uint8_t foregroundDamageLevel;
   TileDamageType backgroundDamageType;
   uint8_t backgroundDamageLevel;
-
   LiquidId liquidId;
   uint8_t liquidLevel;
 

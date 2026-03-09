@@ -4,6 +4,10 @@
 #include "StarLabelWidget.hpp"
 #include "StarFlowLayout.hpp"
 
+#define TRACY_ENABLE
+#define TRACY_DELAYED_INIT
+#include "tracy/Tracy.hpp"
+
 namespace Star {
 
 Widget::Widget() {

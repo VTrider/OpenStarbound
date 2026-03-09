@@ -300,6 +300,10 @@ inline uint8_t floatToByte(float val, bool doClamp = false) {
   return (uint8_t)(val * 255.0f);
 }
 
+inline uint8_t floatToByteNoClamp(float val) {
+  return (uint8_t)(val * 255.0f);
+}
+
 // Used in color conversion from uint8_t to normalized float.
 inline float byteToFloat(uint8_t val) {
   return val / 255.0f;

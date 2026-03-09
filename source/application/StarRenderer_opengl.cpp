@@ -382,6 +382,7 @@ void OpenGlRenderer::loadEffectConfig(String const& name, Json const& effectConf
 }
 
 void OpenGlRenderer::setEffectParameter(String const& parameterName, RenderEffectParameter const& value) {
+  ZoneScoped;
   auto ptr = m_currentEffect->parameters.ptr(parameterName);
   if (!ptr || (ptr->parameterValue && *ptr->parameterValue == value))
     return;
@@ -452,6 +453,7 @@ Maybe<VariantTypeIndex> OpenGlRenderer::getEffectScriptableParameterType(String 
 }
 
 void OpenGlRenderer::setEffectTexture(String const& textureName, ImageView const& image) {
+  ZoneScoped;
   auto ptr = m_currentEffect->textures.ptr(textureName);
   if (!ptr)
     return;
@@ -473,7 +475,7 @@ void OpenGlRenderer::setEffectTexture(String const& textureName, ImageView const
 }
 
 bool OpenGlRenderer::switchEffectConfig(String const& name) {
-  // ZoneScoped;
+  ZoneScoped;
   flushImmediatePrimitives();
   auto find = m_effects.find(name);
   if (find == m_effects.end())
@@ -611,6 +613,11 @@ void OpenGlRenderer::renderBuffer(RenderBufferPtr const& renderBuffer, Mat3F con
 void OpenGlRenderer::flush(Mat3F const& transformation) {
   ZoneScoped;
   flushImmediatePrimitives(transformation);
+}
+
+void OpenGlRenderer::renderInstanced(RenderInstancedBatch const& batch) {
+  if (batch.instanceCount == 0)
+    return;
 }
 
 void OpenGlRenderer::setScreenSize(Vec2U screenSize) {
