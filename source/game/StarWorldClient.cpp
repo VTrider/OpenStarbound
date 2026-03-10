@@ -615,16 +615,27 @@ void WorldClient::render(WorldRenderData& renderData, unsigned bufferTiles) {
       return a->entityId() < b->entityId();
     });
 
-  m_tileArray->tileEachTo(renderData.tiles, tileRange, [&](RenderTile& renderTile, Vec2I const&, ClientTile const& clientTile)[[msvc::__forceinline]] {
-    // VT: This is the size of the common section of the RenderTile and ClientTile structs which speeds
-    // up this function by about 10%
-    std::memcpy(&renderTile, &clientTile, 14);
+  m_tileArray->tileEachTo(renderData.tiles, tileRange, [&](RenderTile& renderTile, Vec2I const&, ClientTile const& clientTile) {
+    renderTile.foreground = clientTile.foreground;
+    renderTile.foregroundMod = clientTile.foregroundMod;
+
+    renderTile.background = clientTile.background;
+    renderTile.backgroundMod = clientTile.backgroundMod;
+
+    renderTile.foregroundHueShift = clientTile.foregroundHueShift;
+    renderTile.foregroundModHueShift = clientTile.foregroundModHueShift;
+    renderTile.foregroundColorVariant = clientTile.foregroundColorVariant;
     renderTile.foregroundDamageType = clientTile.foregroundDamage.damageType();
-    renderTile.foregroundDamageLevel = floatToByteNoClamp(clientTile.foregroundDamage.damageEffectPercentage());
+    renderTile.foregroundDamageLevel = floatToByte(clientTile.foregroundDamage.damageEffectPercentage());
+
+    renderTile.backgroundHueShift = clientTile.backgroundHueShift;
+    renderTile.backgroundModHueShift = clientTile.backgroundModHueShift;
+    renderTile.backgroundColorVariant = clientTile.backgroundColorVariant;
     renderTile.backgroundDamageType = clientTile.backgroundDamage.damageType();
-    renderTile.backgroundDamageLevel = floatToByteNoClamp(clientTile.backgroundDamage.damageEffectPercentage());
+    renderTile.backgroundDamageLevel = floatToByte(clientTile.backgroundDamage.damageEffectPercentage());
+
     renderTile.liquidId = clientTile.liquid.liquid;
-    renderTile.liquidLevel = floatToByteNoClamp(clientTile.liquid.level);
+    renderTile.liquidLevel = floatToByte(clientTile.liquid.level);
     });
 
   for (auto& pair : m_predictedTiles) {

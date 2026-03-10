@@ -27,25 +27,18 @@ struct WorldTile {
   bool isColliding(CollisionSet const& collisionSet) const;
 
   MaterialId foreground;
-  ModId foregroundMod;
-  MaterialId background;
-  ModId backgroundMod;
   MaterialHue foregroundHueShift;
+  ModId foregroundMod;
   MaterialHue foregroundModHueShift;
   MaterialColorVariant foregroundColorVariant;
+
+  MaterialId background;
   MaterialHue backgroundHueShift;
+  ModId backgroundMod;
   MaterialHue backgroundModHueShift;
   MaterialColorVariant backgroundColorVariant;
 
-  TileDamageType foregroundDamageType; // intermediate render field
-  uint8_t foregroundDamageLevel;       // intermediate render field
-  TileDamageType backgroundDamageType; // intermediate render field
-  uint8_t backgroundDamageLevel;       // intermediate render field
-  LiquidId liquidId;
-  uint8_t liquidLevel;
-
-  LiquidLevel liquid;
-
+  CollisionKind collision;
 
   bool collisionCacheDirty;
   StaticList<CollisionBlock, CollisionGenerator::MaximumCollisionsPerSpace> collisionCache;
@@ -55,13 +48,12 @@ struct WorldTile {
 
   bool biomeTransition;
 
+  TileDamageStatus foregroundDamage;
+  TileDamageStatus backgroundDamage;
+
   // If block is part of a dungeon then that affects spawns/drops,
   // as well as governing block protection
   DungeonId dungeonId;
-
-  CollisionKind collision;
-  TileDamageStatus backgroundDamage;
-  TileDamageStatus foregroundDamage;
 };
 
 struct ServerTile : public WorldTile {
@@ -107,6 +99,7 @@ struct ClientTile : public WorldTile {
   bool backgroundLightTransparent;
   bool foregroundLightTransparent;
 
+  LiquidLevel liquid;
 
   float gravity;
 };
@@ -173,19 +166,22 @@ struct PredictedTile {
 struct RenderTile {
   MaterialId foreground;
   ModId foregroundMod;
+
   MaterialId background;
   ModId backgroundMod;
+
   MaterialHue foregroundHueShift;
   MaterialHue foregroundModHueShift;
   MaterialColorVariant foregroundColorVariant;
+  TileDamageType foregroundDamageType;
+  uint8_t foregroundDamageLevel;
+
   MaterialHue backgroundHueShift;
   MaterialHue backgroundModHueShift;
   MaterialColorVariant backgroundColorVariant;
-
-  TileDamageType foregroundDamageType;
-  uint8_t foregroundDamageLevel;
   TileDamageType backgroundDamageType;
   uint8_t backgroundDamageLevel;
+
   LiquidId liquidId;
   uint8_t liquidLevel;
 
