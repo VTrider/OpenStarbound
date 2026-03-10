@@ -115,9 +115,10 @@ private:
   template <typename Function>
   bool evalColumnsPrivPar(size_t minX, size_t minY, size_t width, size_t height, Function&& function, bool evalEmpty);
 
+  WorkerPool& getWorkerPool() const;
+
   SectorArray m_sectors;
   HashSet<Sector> m_loadedSectors;
-  WorkerPool m_workerPool;
 };
 
 template <typename ElementT, size_t SectorSize>
@@ -143,14 +144,11 @@ ElementT& SectorArray2D<ElementT, SectorSize>::Array::operator()(size_t x, size_
 }
 
 template <typename ElementT, size_t SectorSize>
-SectorArray2D<ElementT, SectorSize>::SectorArray2D() : m_workerPool("SectorArray2DWorkerPool") {
-  m_workerPool.start(std::thread::hardware_concurrency());
-}
+SectorArray2D<ElementT, SectorSize>::SectorArray2D() {}
 
 template <typename ElementT, size_t SectorSize>
-SectorArray2D<ElementT, SectorSize>::SectorArray2D(size_t numSectorsWide, size_t numSectorsHigh) : m_workerPool("SectorArray2DWorkerPool") {
+SectorArray2D<ElementT, SectorSize>::SectorArray2D(size_t numSectorsWide, size_t numSectorsHigh) {
   init(numSectorsWide, numSectorsHigh);
-  m_workerPool.start(std::thread::hardware_concurrency());
 }
 
 template <typename ElementT, size_t SectorSize>
@@ -426,7 +424,9 @@ bool SectorArray2D<ElementT, SectorSize>::evalColumnsPrivPar(
 
   size_t sectorCount = maxXSector - minXSector + 1;
 
+  auto& workerPool = getWorkerPool();
   std::vector<WorkerPoolHandle> futures;
+  StaticList<WorkerPoolHandle, 10> l;
   futures.reserve(sectorCount);
 
   for (size_t xSector = minXSector; xSector <= maxXSector; ++xSector) {
@@ -440,42 +440,48 @@ bool SectorArray2D<ElementT, SectorSize>::evalColumnsPrivPar(
 
     size_t x_ = xSector * SectorSize;
 
-    futures.push_back(m_workerPool.addWork([=, &function]() {
-    for (size_t ySector = minYSector; ySector <= maxYSector; ++ySector) {
-      Array* array = m_sectors(xSector, ySector).get();
+    futures.push_back(workerPool.addWork([=, &function]() {
+      for (size_t ySector = minYSector; ySector <= maxYSector; ++ySector) {
+        Array* array = m_sectors(xSector, ySector).get();
 
-      if (!array && !evalEmpty)
-        continue;
+        if (!array && !evalEmpty)
+          continue;
 
-      size_t minYi = 0;
-      if (ySector == minYSector)
-        minYi = minY % SectorSize;
+        size_t minYi = 0;
+        if (ySector == minYSector)
+          minYi = minY % SectorSize;
 
-      size_t maxYi = SectorSize - 1;
-      if (ySector == maxYSector)
-        maxYi = (maxY - 1) % SectorSize;
+        size_t maxYi = SectorSize - 1;
+        if (ySector == maxYSector)
+          maxYi = (maxY - 1) % SectorSize;
 
-      size_t y_ = ySector * SectorSize;
+        size_t y_ = ySector * SectorSize;
 
-      if (!array) {
-        for (size_t xi = minXi; xi <= maxXi; ++xi) {
-          if (!function(xi + x_, minYi + y_, nullptr, maxYi - minYi + 1))
-            return false;
-        }
-      } else {
-        for (size_t xi = minXi; xi <= maxXi; ++xi) {
-          if (!function(xi + x_, minYi + y_, &array->elements[xi * SectorSize + minYi], maxYi - minYi + 1))
-            return false;
+        if (!array) {
+          for (size_t xi = minXi; xi <= maxXi; ++xi) {
+            if (!function(xi + x_, minYi + y_, nullptr, maxYi - minYi + 1))
+              return false;
+          }
+        } else {
+          for (size_t xi = minXi; xi <= maxXi; ++xi) {
+            if (!function(xi + x_, minYi + y_, &array->elements[xi * SectorSize + minYi], maxYi - minYi + 1))
+              return false;
+          }
         }
       }
-    }
-    }));
+      }));
   }
   for (const auto& f : futures) {
     f.finish();
   }
 
   return true;
+}
+
+template <typename ElementT, size_t SectorSize>
+WorkerPool& SectorArray2D<ElementT, SectorSize>::getWorkerPool() const {
+  static WorkerPool pool("SectorArray2DWorkerPool", std::thread::hardware_concurrency());
+  return pool;
 }
 
 }
