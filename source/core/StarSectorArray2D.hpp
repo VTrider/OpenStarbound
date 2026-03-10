@@ -426,7 +426,6 @@ bool SectorArray2D<ElementT, SectorSize>::evalColumnsPrivPar(
 
   auto& workerPool = getWorkerPool();
   std::vector<WorkerPoolHandle> futures;
-  StaticList<WorkerPoolHandle, 10> l;
   futures.reserve(sectorCount);
 
   for (size_t xSector = minXSector; xSector <= maxXSector; ++xSector) {
