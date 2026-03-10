@@ -219,8 +219,4 @@ WorkerPoolPromise<ResultType> WorkerPool::addProducer(function<ResultType()> pro
   return workerPoolPromiseImpl;
 }
 
-size_t WorkerPool::getWorkerCount() const {
-  return m_workerThreads.size();
-}
-
 }
