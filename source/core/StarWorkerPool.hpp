@@ -121,6 +121,9 @@ public:
   template <typename ResultType>
   WorkerPoolPromise<ResultType> addProducer(function<ResultType()> producer);
 
+  // Returns the current number of worker threads.
+  size_t getWorkerCount() const;
+
 private:
   class WorkerThread : public Thread {
   public:
@@ -214,6 +217,10 @@ WorkerPoolPromise<ResultType> WorkerPool::addProducer(function<ResultType()> pro
   });
 
   return workerPoolPromiseImpl;
+}
+
+size_t WorkerPool::getWorkerCount() const {
+  return m_workerThreads.size();
 }
 
 }
