@@ -7,6 +7,10 @@
 
 #include "thread"
 
+#define TRACY_ENABLE
+#define TRACY_DELAYED_INIT
+#include "tracy/Tracy.hpp"
+
 namespace Star {
 
 // Holds a sparse 2d array of data based on sector size.  Meant to be used as a
@@ -345,6 +349,7 @@ template <typename ElementT, size_t SectorSize>
 template <typename Function>
 bool SectorArray2D<ElementT, SectorSize>::evalColumnsPriv(
     size_t minX, size_t minY, size_t width, size_t height, Function&& function, bool evalEmpty) {
+  ZoneScoped;
   if (width == 0 || height == 0)
     return true;
 
@@ -407,6 +412,7 @@ template <typename ElementT, size_t SectorSize>
 template <typename Function>
 bool SectorArray2D<ElementT, SectorSize>::evalColumnsPrivPar(
     size_t minX, size_t minY, size_t width, size_t height, Function&& function, bool evalEmpty) {
+  ZoneScoped;
   if (width == 0 || height == 0)
     return true;
 
