@@ -543,12 +543,13 @@ void WorldClient::render(WorldRenderData& renderData, unsigned bufferTiles) {
       if (auto& globalDirectives = parameters->globalDirectives)
         directives = &globalDirectives.get();
   }
-  m_entityMap->forAllEntities([&](EntityPtr const& entity) {
-    ZoneScoped;
-      if (m_startupHiddenEntities.contains(entity->entityId()))
-        return;
 
+  List entityRenderResults = m_entityMap->forAllEntitiesParallel<ClientRenderCallback>([&](EntityPtr const& entity) -> ClientRenderCallback {
       ClientRenderCallback renderCallback;
+      renderCallback.entity = entity;
+
+      if (m_startupHiddenEntities.contains(entity->entityId()))
+        return renderCallback;
 
       try { entity->render(&renderCallback); }
       catch (StarException const& e) {
@@ -572,48 +573,51 @@ void WorldClient::render(WorldRenderData& renderData, unsigned bufferTiles) {
         }
       }
       
-
-      EntityDrawables ed;
-      for (auto& p : renderCallback.drawables) {
-        if (directives) {
-          int directiveIndex = unsigned(entity->entityId()) % directives->size();
-          for (auto& d : p.second) {
-            if (d.isImage())
-              d.imagePart().addDirectives(directives->at(directiveIndex), true);
-          }
-        }
-        ed.layers[p.first] = std::move(p.second);
-      }
-
-      if (m_interactiveHighlightMode || (!inspecting && entity->entityId() == playerAimInteractive)) {
-        if (auto interactive = as<InteractiveEntity>(entity)) {
-          if (interactive->isInteractive()) {
-            ed.highlightEffect.type = EntityHighlightEffectType::Interactive;
-            ed.highlightEffect.level = pulseLevel;
-          }
-        }
-      } else if (inspecting) {
-        if (auto inspectable = as<InspectableEntity>(entity)) {
-          ed.highlightEffect = m_mainPlayer->inspectionHighlight(inspectable);
-          ed.highlightEffect.level *= inspectionFlickerMultiplier;
-        }
-      }
-      renderData.entityDrawables.append(std::move(ed));
-
-      if (directives) {
-        int directiveIndex = unsigned(entity->entityId()) % directives->size();
-        for (auto& p : renderCallback.particles)
-          p.directives.append(directives->get(directiveIndex));
-      }
-      
-      m_particles->addParticles(std::move(renderCallback.particles));
-      m_samples.appendAll(std::move(renderCallback.audios));
-      m_previewTiles.appendAll(std::move(renderCallback.previewTiles));
-      renderData.overheadBars.appendAll(std::move(renderCallback.overheadBars));
-
+      return renderCallback;
+  
     }, [](EntityPtr const& a, EntityPtr const& b) {
       return a->entityId() < b->entityId();
     });
+
+  for (auto& renderCallback : entityRenderResults) {
+    EntityDrawables ed;
+    for (auto& p : renderCallback.drawables) {
+      if (directives) {
+        int directiveIndex = unsigned(renderCallback.entity->entityId()) % directives->size();
+        for (auto& d : p.second) {
+          if (d.isImage())
+            d.imagePart().addDirectives(directives->at(directiveIndex), true);
+        }
+      }
+      ed.layers[p.first] = std::move(p.second);
+    }
+
+    if (m_interactiveHighlightMode || (!inspecting && renderCallback.entity->entityId() == playerAimInteractive)) {
+      if (auto interactive = as<InteractiveEntity>(renderCallback.entity)) {
+        if (interactive->isInteractive()) {
+          ed.highlightEffect.type = EntityHighlightEffectType::Interactive;
+          ed.highlightEffect.level = pulseLevel;
+        }
+      }
+    } else if (inspecting) {
+      if (auto inspectable = as<InspectableEntity>(renderCallback.entity)) {
+        ed.highlightEffect = m_mainPlayer->inspectionHighlight(inspectable);
+        ed.highlightEffect.level *= inspectionFlickerMultiplier;
+      }
+    }
+    renderData.entityDrawables.append(std::move(ed));
+
+    if (directives) {
+      int directiveIndex = unsigned(renderCallback.entity->entityId()) % directives->size();
+      for (auto& p : renderCallback.particles)
+        p.directives.append(directives->get(directiveIndex));
+    }
+    
+    m_particles->addParticles(std::move(renderCallback.particles));
+    m_samples.appendAll(std::move(renderCallback.audios));
+    m_previewTiles.appendAll(std::move(renderCallback.previewTiles));
+    renderData.overheadBars.appendAll(std::move(renderCallback.overheadBars));
+  }
 
   m_tileArray->tileEachTo(renderData.tiles, tileRange, [&](RenderTile& renderTile, Vec2I const&, ClientTile const& clientTile) {
     renderTile.foreground = clientTile.foreground;

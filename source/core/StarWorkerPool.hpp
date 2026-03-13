@@ -2,6 +2,10 @@
 
 #include "StarThread.hpp"
 
+#define TRACY_ENABLE
+#define TRACY_DELAYED_INIT
+#include "tracy/Tracy.hpp"
+
 namespace Star {
 
 STAR_EXCEPTION(WorkerPoolException, StarException);
@@ -178,6 +182,7 @@ bool WorkerPoolPromise<ResultType>::poll() const {
 
 template <typename ResultType>
 ResultType& WorkerPoolPromise<ResultType>::get() {
+  ZoneScoped;
   MutexLocker locker(m_impl->mutex);
 
   if (!m_impl->result && !m_impl->exception)
@@ -200,6 +205,7 @@ WorkerPoolPromise<ResultType>::WorkerPoolPromise(shared_ptr<Impl> impl)
 
 template <typename ResultType>
 WorkerPoolPromise<ResultType> WorkerPool::addProducer(function<ResultType()> producer) {
+  ZoneScoped;
   // Construct a worker pool promise and wrap the producer to signal the
   // promise when finished.
   auto workerPoolPromiseImpl = make_shared<typename WorkerPoolPromise<ResultType>::Impl>();

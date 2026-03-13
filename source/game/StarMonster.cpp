@@ -20,6 +20,10 @@
 #include "StarTime.hpp"
 #include "StarStatusController.hpp"
 
+#define TRACY_ENABLE
+#define TRACY_DELAYED_INIT
+#include "tracy/Tracy.hpp"
+
 namespace Star {
 
 Monster::Monster(MonsterVariant const& monsterVariant, Maybe<float> level) {
@@ -491,6 +495,7 @@ void Monster::update(float dt, uint64_t) {
 }
 
 void Monster::render(RenderCallback* renderCallback) {
+  ZoneScoped;
   for (auto& drawable : m_networkedAnimator.drawables(position())) {
     if (drawable.isImage())
       drawable.imagePart().addDirectivesGroup(m_statusController->parentDirectives(), true);

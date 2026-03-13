@@ -22,6 +22,10 @@
 #include "StarMaterialDatabase.hpp"
 #include "StarScriptedAnimatorLuaBindings.hpp"
 
+#define TRACY_ENABLE
+#define TRACY_DELAYED_INIT
+#include "tracy/Tracy.hpp"
+
 namespace Star {
 
 Object::Object(ObjectConfigConstPtr config, Json const& parameters) {
@@ -433,6 +437,7 @@ void Object::update(float dt, uint64_t) {
 }
 
 void Object::render(RenderCallback* renderCallback) {
+  ZoneScoped;
   renderParticles(renderCallback);
   renderSounds(renderCallback);
 
@@ -442,15 +447,17 @@ void Object::render(RenderCallback* renderCallback) {
   renderCallback->addAudios(m_networkedAnimatorDynamicTarget.pullNewAudios());
   renderCallback->addParticles(m_networkedAnimatorDynamicTarget.pullNewParticles());
 
+  auto layer = renderLayer();
+
   if (m_networkedAnimator->constParts().size() > 0) {
-    renderCallback->addDrawables(m_networkedAnimator->drawables(position() + m_animationPosition + damageShake()), renderLayer());
+    renderCallback->addDrawables(m_networkedAnimator->drawables(position() + m_animationPosition + damageShake()), layer);
   } else {
     if (m_orientationIndex != NPos)
-      renderCallback->addDrawables(orientationDrawables(m_orientationIndex), renderLayer(), position());
+      renderCallback->addDrawables(orientationDrawables(m_orientationIndex), layer, position());
   }
 
-  for (auto drawablePair : m_scriptedAnimator.drawables())
-    renderCallback->addDrawable(drawablePair.first, drawablePair.second.value(renderLayer()));
+  for (const auto& drawablePair : m_scriptedAnimator.drawables())
+    renderCallback->addDrawable(drawablePair.first, drawablePair.second.value(layer));
   renderCallback->addParticles(m_scriptedAnimator.pullNewParticles());
   renderCallback->addAudios(m_scriptedAnimator.pullNewAudios());
 }

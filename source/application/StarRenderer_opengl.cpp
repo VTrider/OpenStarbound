@@ -606,6 +606,7 @@ void OpenGlRenderer::render(RenderPrimitive primitive) {
 }
 
 void OpenGlRenderer::renderBuffer(RenderBufferPtr const& renderBuffer, Mat3F const& transformation) {
+  ZoneScoped;
   flushImmediatePrimitives();
   renderGlBuffer(*convert<GlRenderBuffer>(renderBuffer.get()), transformation);
 }

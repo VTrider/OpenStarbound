@@ -1184,6 +1184,8 @@ EntityId Player::lastDamagedTarget() const {
 }
 
 void Player::render(RenderCallback* renderCallback) {
+  ZoneScoped;
+  auto assets = Root::singleton().assets();
   if (invisible()) {
     m_techController->pullNewAudios();
     m_techController->pullNewParticles();
@@ -1199,7 +1201,7 @@ void Player::render(RenderCallback* renderCallback) {
   String footstepSound = getFootstepSound(footstepSensor);
 
   if (!footstepSound.empty() && !m_techController->parentState() && !m_techController->parentHidden()) {
-    auto footstepAudio = Root::singleton().assets()->audio(footstepSound);
+    auto footstepAudio = assets->audio(footstepSound);
     if (m_landingNoisePending) {
       auto landingNoise = make_shared<AudioInstance>(*footstepAudio);
       landingNoise->setPosition(position() + feetOffset());
@@ -1227,7 +1229,7 @@ void Player::render(RenderCallback* renderCallback) {
   renderCallback->addAudios(m_humanoidDynamicTarget.pullNewAudios());
 
   for (auto const& p : take(m_callbackSounds)) {
-    auto audio = make_shared<AudioInstance>(*Root::singleton().assets()->audio(get<0>(p)));
+    auto audio = make_shared<AudioInstance>(*assets->audio(get<0>(p)));
     audio->setVolume(get<1>(p));
     audio->setPitchMultiplier(get<2>(p));
     audio->setPosition(position());

@@ -227,9 +227,8 @@ void EntityMap::forAllEntities(EntityCallback const& callback, function<bool(Ent
 
   if (sortOrder) {
     allEntities.sort([&sortOrder](EntityPtr const* a, EntityPtr const* b) {
-      ZoneScoped;
-        return sortOrder(*a, *b);
-      });
+      return sortOrder(*a, *b);
+    });
   }
 
   for (auto ptr : allEntities) {
@@ -240,8 +239,7 @@ void EntityMap::forAllEntities(EntityCallback const& callback, function<bool(Ent
       Logger::error("[EntityMap] Exception caught running forAllEntities callback for {} entity {} (named \"{}\")",
                     EntityTypeNames.getRight(entity->entityType()),
                     entity->entityId(),
-        entity->name()
-      );
+                    entity->name());
       throw;
     }
   }
@@ -374,6 +372,11 @@ bool EntityMap::spaceIsOccupied(RectF const& rect, bool includesEphemeral) const
     }
   }
   return false;
+}
+
+WorkerPool& EntityMap::getWorkerPool() const {
+  static WorkerPool pool("EntityMapWorkerPool", std::thread::hardware_concurrency());
+  return pool;
 }
 
 }

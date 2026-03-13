@@ -209,11 +209,20 @@ private:
 template <typename EntityT>
 using EntityCallbackOf = function<void(shared_ptr<EntityT> const&)>;
 
+template <typename EntityT, typename InvocationResult>
+using EntityCallbackOfPar = function<InvocationResult(shared_ptr<EntityT> const&)>;
+
 template <typename EntityT>
 using EntityFilterOf = function<bool(shared_ptr<EntityT> const&)>;
 
-typedef EntityCallbackOf<Entity> EntityCallback;
-typedef EntityFilterOf<Entity> EntityFilter;
+using EntityCallback = EntityCallbackOf<Entity>;
+
+// This should return any thread local entity processing that needs to be merged
+// back into the global state
+template <typename InvocationResult>
+using ParallelEntityCallback = EntityCallbackOfPar<Entity, InvocationResult>;
+
+using EntityFilter = EntityFilterOf<Entity>;
 
 // Filters based first on dynamic casting to the given type, then optionally on
 // the given derived type filter.

@@ -26,6 +26,7 @@ bool WorkerPoolHandle::poll() const {
 }
 
 void WorkerPoolHandle::finish() const {
+  ZoneScoped;
   MutexLocker locker(m_impl->mutex);
 
   if (!m_impl->done)
@@ -103,6 +104,7 @@ void WorkerPool::finish() {
 }
 
 WorkerPoolHandle WorkerPool::addWork(function<void()> work) {
+  ZoneScoped;
   // Construct a worker pool handle and wrap the work to signal the handle when
   // finished.  Set the result to empty string if successful and to the content
   // of the exception if an exception is thrown.

@@ -30,6 +30,10 @@
 #include "StarNetworkedAnimatorLuaBindings.hpp"
 #include "StarScriptedAnimatorLuaBindings.hpp"
 
+#define TRACY_ENABLE
+#define TRACY_DELAYED_INIT
+#include "tracy/Tracy.hpp"
+
 namespace Star {
 
 Npc::Npc(NpcVariant const& npcVariant) {
@@ -504,6 +508,7 @@ void Npc::update(float dt, uint64_t) {
 }
 
 void Npc::render(RenderCallback* renderCallback) {
+  ZoneScoped;
   EntityRenderLayer renderLayer = RenderLayerNpc;
   if (auto loungeAnchor = as<LoungeAnchor>(m_movementController->entityAnchor()))
     renderLayer = loungeAnchor->loungeRenderLayer;

@@ -200,6 +200,8 @@ private:
     List<AudioInstancePtr> audios;
     List<PreviewTile> previewTiles;
     List<OverheadBar> overheadBars;
+
+    EntityPtr entity;
   };
 
   struct DamageNumber {

@@ -156,6 +156,7 @@ TilePainter::ChunkHash TilePainter::liquidChunkHash(WorldRenderData& renderData,
 }
 
 void TilePainter::renderTerrainChunks(WorldCamera const& camera, TerrainLayer terrainLayer) {
+  ZoneScoped;
   Map<QuadZLevel, List<RenderBufferPtr>> zOrderBuffers;
   for (auto const& chunk : m_pendingTerrainChunks) {
     for (auto const& pair : chunk->value(terrainLayer))
@@ -230,6 +231,7 @@ shared_ptr<TilePainter::LiquidChunk const> TilePainter::getLiquidChunk(WorldRend
 
 bool TilePainter::produceTerrainPrimitives(HashMap<QuadZLevel, List<RenderPrimitive>>& primitives,
     TerrainLayer terrainLayer, Vec2I const& pos, WorldRenderData const& renderData) {
+  ZoneScoped;
   auto& root = Root::singleton();
   auto assets = Root::singleton().assets();
   auto materialDatabase = root.materialDatabase();

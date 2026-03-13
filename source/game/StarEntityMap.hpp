@@ -4,6 +4,8 @@
 #include "StarEntity.hpp"
 #include "StarWorkerPool.hpp"
 
+#include "atomic"
+
 namespace Star {
 
 STAR_CLASS(EntityMap);
@@ -74,6 +76,10 @@ public:
   // Iterate through all the entities, optionally in the given sort order.
   void forAllEntities(EntityCallback const& callback, function<bool(EntityPtr const&, EntityPtr const&)> sortOrder = {}) const;
 
+  // Iterates through all entities concurrently, you need to guarantee thread safety.
+  template <typename InvocationResult>
+  List<InvocationResult> forAllEntitiesParallel(ParallelEntityCallback<InvocationResult> const& callback, function<bool(EntityPtr const&, EntityPtr const&)> sortOrder = {}) const;
+
   // Stops searching when filter returns true, and returns the entity which
   // caused it.
   EntityPtr findEntity(RectF const& boundBox, EntityFilter const& filter) const;
@@ -115,6 +121,8 @@ public:
 
   template <typename EntityT>
   List<shared_ptr<EntityT>> atTile(Vec2I const& pos) const;
+
+  WorkerPool& getWorkerPool() const;
 
 private:
   typedef SpatialHash2D<EntityId, float, EntityPtr> SpatialMap;
@@ -188,6 +196,76 @@ List<shared_ptr<EntityT>> EntityMap::atTile(Vec2I const& pos) const {
       return false;
     });
   return list;
+}
+
+template <typename InvocationResult>
+List<InvocationResult> EntityMap::forAllEntitiesParallel(ParallelEntityCallback<InvocationResult> const& callback, function<bool(EntityPtr const&, EntityPtr const&)> sortOrder) const {
+  ZoneScoped;
+  // Even if there is no sort order, we still copy pointers to a temporary
+  // list, so that it is safe to call addEntity from the callback.
+  List<EntityPtr const*> allEntities;
+  allEntities.reserve(m_spatialMap.size());
+  for (auto const& entry : m_spatialMap.entries())
+    allEntities.append(&entry.second.value);
+
+  if (sortOrder) {
+    allEntities.sort([&sortOrder](EntityPtr const* a, EntityPtr const* b) {
+      return sortOrder(*a, *b);
+    });
+  }
+
+  WorkerPool& workerPool = getWorkerPool();
+
+  const size_t entityCount = allEntities.size();
+  const size_t workerCount = workerPool.getWorkerCount();
+
+  List<WorkerPoolHandle> futures;
+  futures.reserve(workerCount);
+
+  List<InvocationResult> results;
+  results.resize(allEntities.size());
+
+  std::atomic<size_t> next{0};
+
+  // VT: arbitrary size to prevent false sharing, might not be
+  // 100% optimal depending on cpu core count but it's a good middle ground
+  constexpr size_t blockSize = 16; 
+
+  for (size_t i = 0; i < workerCount; ++i) {
+    futures.push_back(workerPool.addWork([=, &allEntities, &callback, &results, &next] {
+      // VT: the data is ordered with expensive objects close together (npc, monster, etc),
+      // use atomic index to balance load when a few blocks take much longer than others,
+      // this improves runtime by about 20%
+      while (true) {
+        const size_t start = next.fetch_add(blockSize, std::memory_order_relaxed);
+
+        if (start >= entityCount)
+          break;
+
+        const size_t end = std::min(start + blockSize, entityCount);
+
+        for (size_t j = start; j < end; ++j) {
+          const EntityPtr& entity = *allEntities[j];
+		  try {
+            results[j] = callback(entity);
+		  } catch (...) {
+			Logger::error("[EntityMap] Exception caught running forAllEntities callback for {} entity {} (named \"{}\")",
+						  EntityTypeNames.getRight(entity->entityType()),
+						  entity->entityId(),
+						  entity->name());
+			throw;
+		  }
+
+        }
+      }
+    }));
+  }
+
+  for (const auto& f : futures) {
+    f.finish();
+  }
+
+  return results;
 }
 
 }

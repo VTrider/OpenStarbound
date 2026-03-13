@@ -10,6 +10,10 @@
 #include "StarEntityRendering.hpp"
 #include "StarParticleDatabase.hpp"
 
+#define TRACY_ENABLE
+#define TRACY_DELAYED_INIT
+#include "tracy/Tracy.hpp"
+
 namespace Star {
 
 float const Plant::PlantScanThreshold = 0.1f;
@@ -740,6 +744,7 @@ void Plant::update(float dt, uint64_t) {
 }
 
 void Plant::render(RenderCallback* renderCallback) {
+  ZoneScoped;
   float damageXOffset = Random::randf(-0.1f, 0.1f) * m_tileDamageStatus.damageEffectPercentage();
 
   for (auto const& plantPiece : m_pieces) {
