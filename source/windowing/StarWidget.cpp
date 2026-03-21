@@ -34,6 +34,7 @@ GuiContext* Widget::context() const {
 }
 
 void Widget::render(RectI const& region) {
+  ZoneScoped;
   if (!m_visible)
     return;
 
@@ -47,6 +48,7 @@ void Widget::render(RectI const& region) {
 void Widget::renderImpl() {}
 
 void Widget::drawChildren() {
+  ZoneScoped;
   for (auto child : m_members)
     child->render(m_drawingArea);
 }
@@ -60,6 +62,7 @@ Vec2I Widget::relativePosition() const {
 }
 
 bool Widget::setupDrawRegion(RectI const& region) {
+  ZoneScoped;
   RectI scissorRect;
   if (m_doScissor) {
     scissorRect = getScissorRect();

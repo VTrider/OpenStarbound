@@ -525,6 +525,7 @@ bool OpenGlRenderer::switchEffectConfig(String const& name) {
 }
 
 void OpenGlRenderer::setScissorRect(Maybe<RectI> const& scissorRect) {
+  ZoneScoped;
   if (scissorRect == m_scissorRect)
     return;
 
@@ -1031,6 +1032,7 @@ void OpenGlRenderer::uploadTextureImage(PixelFormat pixelFormat, Vec2U size, uin
 }
 
 void OpenGlRenderer::flushImmediatePrimitives(Mat3F const& transformation) {
+  ZoneScoped;
   if (m_immediatePrimitives.empty())
     return;
 
@@ -1083,6 +1085,7 @@ auto OpenGlRenderer::createGlRenderBuffer() -> shared_ptr<GlRenderBuffer> {
 }
 
 void OpenGlRenderer::renderGlBuffer(GlRenderBuffer const& renderBuffer, Mat3F const& transformation) {
+  ZoneScoped;
   for (auto const& vb : renderBuffer.vertexBuffers) {
     glUniformMatrix3fv(m_vertexTransformUniform, 1, GL_TRUE, transformation.ptr());
 
