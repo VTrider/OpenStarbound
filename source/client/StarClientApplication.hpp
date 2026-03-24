@@ -30,7 +30,7 @@ protected:
   virtual void shutdown() override;
 
   virtual void applicationInit(ApplicationControllerPtr appController) override;
-  virtual void renderInit(RendererPtr renderer) override;
+  virtual void renderInit(V2::RendererPtr renderer) override;
 
   virtual void windowChanged(WindowMode windowMode, Vec2U screenSize) override;
 

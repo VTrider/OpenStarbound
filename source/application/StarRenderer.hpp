@@ -6,6 +6,10 @@
 #include "StarJson.hpp"
 #include "StarBiMap.hpp"
 #include "StarRefPtr.hpp"
+#include "StarList.hpp"
+
+#include "utility"
+#include "variant"
 
 namespace Star {
 
@@ -122,14 +126,6 @@ public:
 
 typedef Variant<float, int, Vec4F, Vec3F, Vec2F, bool> RenderEffectParameter;
 
-class RenderInstancedBatch {
-public:
-  TexturePtr texture;
-  void const* instanceData;
-  size_t instanceCount;
-  size_t instanceStride;
-};
-
 class Renderer {
 public:
   virtual ~Renderer() = default;
@@ -173,8 +169,87 @@ public:
   virtual void renderBuffer(RenderBufferPtr const& renderBuffer, Mat3F const& transformation = Mat3F::identity()) = 0;
 
   virtual void flush(Mat3F const& transformation = Mat3F::identity()) = 0;
-
-  virtual void renderInstanced(RenderInstancedBatch const& batch) = 0;
 };
+
+namespace V2 {
+
+enum class VertexComponentType {
+  Float
+};
+
+class VertexFormat {
+public:
+  VertexComponentType type;
+  uint32_t count;
+  bool normalized;
+};
+
+class VertexAttribute {
+public:
+  uint32_t location;
+  VertexFormat format;
+  uint32_t offset;
+};
+
+class BufferBase {
+public:
+  virtual ~BufferBase() = default;
+  virtual void upload(void const* data, uint32_t size, uint32_t offset) = 0;
+};
+
+class VertexBuffer : public BufferBase {
+public:
+  virtual ~VertexBuffer() = default;
+  virtual void upload(void const* data, uint32_t size, uint32_t offset) = 0;
+};
+
+class StorageBuffer : public BufferBase {
+public:
+  virtual ~StorageBuffer() = default;
+  virtual void upload(void const* data, uint32_t size, uint32_t offset) = 0;
+};
+
+class PipelineDescriptor {
+public:
+  PipelineDescriptor& setAttribute(VertexAttribute const& attrib);
+
+private:
+  List<VertexAttribute> m_attributes;
+};
+
+class DescriptorSet {
+public:
+  DescriptorSet& bindStorageBuffer(StorageBuffer const& buf, uint32_t binding);
+
+  List<BufferBase> m_buffers;
+};
+
+enum class CmdType {
+  BindVertexBuffer,
+  Draw
+};
+
+using CmdArg = std::variant<VertexBuffer, uint32_t, PipelineDescriptor>;
+
+class CommandBuffer {
+public:
+  CommandBuffer& bindVertexBuffer(VertexBuffer const& buffer);
+  CommandBuffer& bindPipeline(PipelineDescriptor const& pipeline);
+  CommandBuffer& bindDescriptorSet(DescriptorSet const& descriptor);
+  CommandBuffer& pushConstant();
+  CommandBuffer& draw(uint32_t count, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance);
+
+  List<std::pair<CmdType, List<CmdArg>>> m_commandList;
+};
+
+STAR_CLASS(Renderer);
+
+class Renderer : virtual public Star::Renderer {
+public:
+  virtual ~Renderer() = default;
+  virtual void submit(CommandBuffer const& cmd) = 0;
+};
+
+} // namespace V2
 
 }

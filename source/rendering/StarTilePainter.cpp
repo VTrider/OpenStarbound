@@ -10,7 +10,7 @@
 
 namespace Star {
 
-TilePainter::TilePainter(RendererPtr renderer) : TileDrawer() {
+TilePainter::TilePainter(V2::RendererPtr renderer) : TileDrawer() {
   m_renderer = std::move(renderer);
   m_textureGroup = m_renderer->createTextureGroup(TextureGroupSize::Large);
 

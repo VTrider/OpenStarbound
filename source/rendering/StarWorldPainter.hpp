@@ -16,7 +16,7 @@ class WorldPainter {
 public:
   WorldPainter();
 
-  void renderInit(RendererPtr renderer);
+  void renderInit(V2::RendererPtr renderer);
 
   void setCameraPosition(WorldGeometry const& worldGeometry, Vec2F const& position);
 
@@ -37,7 +37,7 @@ private:
 
   WorldCamera m_camera;
 
-  RendererPtr m_renderer;
+  V2::RendererPtr m_renderer;
 
   TextPainterPtr m_textPainter;
   DrawablePainterPtr m_drawablePainter;

@@ -45,7 +45,7 @@ struct TextPositioning {
 // kerning*.
 class TextPainter {
 public:
-  TextPainter(RendererPtr renderer, TextureGroupPtr textureGroup);
+  TextPainter(V2::RendererPtr renderer, TextureGroupPtr textureGroup);
 
   RectF renderText(StringView s, TextPositioning const& position);
   RectF renderLine(StringView s, TextPositioning const& position);
@@ -89,7 +89,7 @@ private:
   void renderGlyph(String::Char c, Vec2F const& screenPos, List<RenderPrimitive>& out, unsigned fontSize, float scale, Vec4B color, Directives const* processingDirectives = nullptr);
   static FontPtr loadFont(String const& fontPath, Maybe<String> fontName = {});
 
-  RendererPtr m_renderer;
+  V2::RendererPtr m_renderer;
   List<RenderPrimitive> m_shadowPrimitives;
   List<RenderPrimitive> m_backPrimitives;
   List<RenderPrimitive> m_frontPrimitives;

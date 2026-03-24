@@ -14,7 +14,7 @@ STAR_CLASS(EnvironmentPainter);
 
 class EnvironmentPainter {
 public:
-  EnvironmentPainter(RendererPtr renderer);
+  EnvironmentPainter(V2::RendererPtr renderer);
 
   void update(float dt);
 
@@ -69,7 +69,7 @@ private:
   uint64_t starsHash(SkyRenderData const& sky, Vec2F const& viewSize) const;
   void setupStars(SkyRenderData const& sky);
 
-  RendererPtr m_renderer;
+  V2::RendererPtr m_renderer;
   AssetTextureGroupPtr m_textureGroup;
 
   double m_timer;

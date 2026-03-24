@@ -40,7 +40,7 @@ GuiContext::~GuiContext() {
   s_singleton = nullptr;
 }
 
-void GuiContext::renderInit(RendererPtr renderer) {
+void GuiContext::renderInit(V2::RendererPtr renderer) {
   m_renderer = std::move(renderer);
   auto textureGroup = m_renderer->createTextureGroup();
   m_textureCollection = make_shared<AssetTextureGroup>(textureGroup);
@@ -56,7 +56,7 @@ ApplicationControllerPtr const& GuiContext::applicationController() const {
   return m_applicationController;
 }
 
-RendererPtr const& GuiContext::renderer() const {
+V2::RendererPtr const& GuiContext::renderer() const {
   if (!m_renderer)
     throw GuiContextException("GuiContext::renderer() called before renderInit");
   return m_renderer;

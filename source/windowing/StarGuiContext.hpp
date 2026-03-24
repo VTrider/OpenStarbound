@@ -32,11 +32,11 @@ public:
   GuiContext(GuiContext const&) = delete;
   GuiContext& operator=(GuiContext const&) = delete;
 
-  void renderInit(RendererPtr renderer);
+  void renderInit(V2::RendererPtr renderer);
 
   MixerPtr const& mixer() const;
   ApplicationControllerPtr const& applicationController() const;
-  RendererPtr const& renderer() const;
+  V2::RendererPtr const& renderer() const;
   AssetTextureGroupPtr const& assetTextureGroup() const;
   TextPainterPtr const& textPainter() const;
 
@@ -139,7 +139,7 @@ private:
 
   MixerPtr m_mixer;
   ApplicationControllerPtr m_applicationController;
-  RendererPtr m_renderer;
+  V2::RendererPtr m_renderer;
 
   AssetTextureGroupPtr m_textureCollection;
   TextPainterPtr m_textPainter;

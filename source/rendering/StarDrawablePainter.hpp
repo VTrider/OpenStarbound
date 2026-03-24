@@ -10,14 +10,14 @@ STAR_CLASS(DrawablePainter);
 
 class DrawablePainter {
 public:
-  DrawablePainter(RendererPtr renderer, AssetTextureGroupPtr textureGroup);
+  DrawablePainter(V2::RendererPtr renderer, AssetTextureGroupPtr textureGroup);
 
   void drawDrawable(Drawable const& drawable);
 
   void cleanup(int64_t textureTimeout);
 
 private:
-  RendererPtr m_renderer;
+  V2::RendererPtr m_renderer;
   AssetTextureGroupPtr m_textureGroup;
 };
 

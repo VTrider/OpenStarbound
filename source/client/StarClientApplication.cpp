@@ -269,7 +269,7 @@ void ClientApplication::applicationInit(ApplicationControllerPtr appController) 
   m_voice->setLocalSpeaker(0);
 }
 
-void ClientApplication::renderInit(RendererPtr renderer) {
+void ClientApplication::renderInit(V2::RendererPtr renderer) {
   Application::renderInit(renderer);
   renderReload();
   m_root->registerReloadListener(m_reloadListener = make_shared<CallbackListener>([this]() { renderReload(); }));

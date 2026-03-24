@@ -43,7 +43,7 @@ class TitleScreen {
 public:
   TitleScreen(PlayerStoragePtr playerStorage, MixerPtr mixer, UniverseClientPtr client);
 
-  void renderInit(RendererPtr renderer);
+  void renderInit(V2::RendererPtr renderer);
 
   void render();
 
@@ -107,7 +107,7 @@ private:
 
   GuiContext* m_guiContext;
 
-  RendererPtr m_renderer;
+  V2::RendererPtr m_renderer;
   EnvironmentPainterPtr m_environmentPainter;
 
   PanePtr m_multiPlayerMenu;

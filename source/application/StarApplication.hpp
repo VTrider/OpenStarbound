@@ -12,6 +12,9 @@ extern bool g_steamIsFlatpak;
 
 STAR_CLASS(ApplicationController);
 STAR_CLASS(Renderer);
+namespace V2 {
+STAR_CLASS(Renderer);
+}
 STAR_CLASS(Application);
 
 STAR_EXCEPTION(ApplicationException, StarException);
@@ -37,7 +40,7 @@ public:
   // Called immediately after application initialization on startup, and then
   // also whenever the renderer invalidated and recreated.  If overridden, must
   // call base class instance.
-  virtual void renderInit(RendererPtr renderer);
+  virtual void renderInit(V2::RendererPtr renderer);
 
   // Called when the window mode or size is changed.
   virtual void windowChanged(WindowMode windowMode, Vec2U screenSize);
@@ -64,18 +67,18 @@ public:
   virtual void shutdown();
 
   ApplicationControllerPtr const& appController() const;
-  RendererPtr const& renderer() const;
+  V2::RendererPtr const& renderer() const;
 
 private:
   ApplicationControllerPtr m_appController;
-  RendererPtr m_renderer;
+  V2::RendererPtr m_renderer;
 };
 
 inline ApplicationControllerPtr const& Application::appController() const {
   return m_appController;
 }
 
-inline RendererPtr const& Application::renderer() const {
+inline V2::RendererPtr const& Application::renderer() const {
   return m_renderer;
 }
 

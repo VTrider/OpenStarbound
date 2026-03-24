@@ -583,16 +583,16 @@ public:
     SDL_SetHint(SDL_HINT_AUDIO_DEVICE_STREAM_NAME, "Audio");
 #endif
 
-#if defined(__APPLE__)
-    // GL 3.2 Core + GLSL 150
-    const char* glsl_version = "#version 150";
+#if defined(STAR_SYSTEM_MACOS)
+    // GL 4.1 Core + GLSL 410
+    const char* glsl_version = "#version 410";
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG); // Always required on Mac
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
 #else
-    // GL 3.0 + GLSL 130
-    const char* glsl_version = "#version 130";
+    // GL 4.6 + GLSL 460
+    const char* glsl_version = "#version 460";
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
@@ -636,7 +636,7 @@ public:
       SDL_ResumeAudioDevice(SDL_GetAudioStreamDevice(m_sdlAudioOutputStream));
     }
 
-    m_renderer = make_shared<OpenGlRenderer>();
+    m_renderer = make_shared<V2::OpenGlRenderer>();
     m_renderer->setScreenSize(m_windowSize);
 
     m_cursorCache.setTimeToLive(30000);
@@ -1368,7 +1368,7 @@ private:
   const char* m_videoDriver;
   const char* m_audioDriver;
 
-  OpenGlRendererPtr m_renderer;
+  V2::OpenGlRendererPtr m_renderer;
   ApplicationUPtr m_application;
   PcPlatformServicesUPtr m_platformServices;
 };

@@ -27,7 +27,7 @@ public:
   static unsigned const RenderChunkSize = 16;
   static unsigned const BorderTileSize = RenderChunkSize + MaterialRenderProfileMaxNeighborDistance - 1;
 
-  TilePainter(RendererPtr renderer);
+  TilePainter(V2::RendererPtr renderer);
 
   // Adjusts lighting levels for liquids.
   void adjustLighting(WorldRenderData& renderData) const;
@@ -90,7 +90,7 @@ private:
 
   List<LiquidInfo> m_liquids;
 
-  RendererPtr m_renderer;
+  V2::RendererPtr m_renderer;
   TextureGroupPtr m_textureGroup;
 
   HashTtlCache<TextureKey, TexturePtr, TextureKeyHash> m_textureCache;

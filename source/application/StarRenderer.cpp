@@ -86,4 +86,37 @@ RenderPoly renderFlatPoly(PolyF const& poly, Vec4B color, float param1) {
   return RenderPoly(poly.vertexes(), color, param1);
 }
 
+namespace V2 {
+
+PipelineDescriptor& PipelineDescriptor::setAttribute(VertexAttribute const& attrib) {
+  m_attributes.emplace_back(attrib);
+  return *this;
 }
+
+CommandBuffer& CommandBuffer::bindVertexBuffer(VertexBuffer const& buffer) {
+  List<CmdArg> args;
+  args.emplace_back(buffer);
+  m_commandList.emplace_back(CmdType::BindVertexBuffer, std::move(args));
+  return *this;
+}
+
+CommandBuffer& CommandBuffer::bindPipeline(PipelineDescriptor const& pipeline) {
+  return *this;
+}
+
+CommandBuffer& CommandBuffer::bindDescriptorSet() {
+  return *this;
+}
+
+CommandBuffer& CommandBuffer::pushConstant() {
+  return *this;
+}
+
+CommandBuffer& CommandBuffer::draw(uint32_t count, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance) {
+  return *this;
+}
+
+} // namespace V2
+
+} // namespace Star
+

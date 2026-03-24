@@ -29,7 +29,7 @@ WorldPainter::WorldPainter() {
   m_preloadTextureChance = m_assets->json("/rendering.config:preloadTextureChance").toFloat();
 }
 
-void WorldPainter::renderInit(RendererPtr renderer) {
+void WorldPainter::renderInit(V2::RendererPtr renderer) {
   m_assets = Root::singleton().assets();
 
   m_renderer = std::move(renderer);

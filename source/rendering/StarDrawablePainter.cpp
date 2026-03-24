@@ -2,7 +2,7 @@
 
 namespace Star {
 
-DrawablePainter::DrawablePainter(RendererPtr renderer, AssetTextureGroupPtr textureGroup) {
+DrawablePainter::DrawablePainter(V2::RendererPtr renderer, AssetTextureGroupPtr textureGroup) {
   m_renderer = std::move(renderer);
   m_textureGroup = std::move(textureGroup);
 }

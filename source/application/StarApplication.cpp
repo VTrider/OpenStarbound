@@ -18,7 +18,7 @@ void Application::applicationInit(ApplicationControllerPtr appController) {
   m_appController = std::move(appController);
 }
 
-void Application::renderInit(RendererPtr renderer) {
+void Application::renderInit(V2::RendererPtr renderer) {
   m_renderer = std::move(renderer);
 }
 

@@ -617,11 +617,6 @@ void OpenGlRenderer::flush(Mat3F const& transformation) {
   flushImmediatePrimitives(transformation);
 }
 
-void OpenGlRenderer::renderInstanced(RenderInstancedBatch const& batch) {
-  if (batch.instanceCount == 0)
-    return;
-}
-
 void OpenGlRenderer::setScreenSize(Vec2U screenSize) {
   m_screenSize = screenSize;
   glViewport(0, 0, m_screenSize[0], m_screenSize[1]);
@@ -1217,5 +1212,32 @@ GLuint OpenGlRenderer::Effect::getUniform(String const& name) {
   return find->second;
 }
 
+namespace V2 {
 
+void OpenGlRenderer::submit(CommandBuffer const& cmd) {
+  PipelineDescriptor const* currentPipeline = nullptr;
+  VertexBuffer const* currentBuffer = nullptr;
+  
+  for (const auto& [cmd, args] : cmd.m_commandList) {
+    switch (cmd) {
+        
+      case CmdType::BindVertexBuffer: {
+        currentBuffer = &std::get<VertexBuffer>(args[0]);
+      }
+      case CmdType::Draw: {
+        GLuint vao = getPipelineVao(*currentPipeline, *currentBuffer);
+        glBindVertexArray(vao);
+        glDrawArraysInstanced(GL_TRIANGLES, 0, 0, 0);
+      }
+    }
+  }
 }
+
+GLuint OpenGlRenderer::getPipelineVao(PipelineDescriptor const& pipeline, VertexBuffer const& buf) {
+  return GLuint();
+}
+
+} // namespace V2
+
+} // namespace Star
+

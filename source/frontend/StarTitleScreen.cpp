@@ -53,7 +53,7 @@ TitleScreen::TitleScreen(PlayerStoragePtr playerStorage, MixerPtr mixer, Univers
   resetState();
 }
 
-void TitleScreen::renderInit(RendererPtr renderer) {
+void TitleScreen::renderInit(V2::RendererPtr renderer) {
   m_renderer = std::move(renderer);
   m_environmentPainter = make_shared<EnvironmentPainter>(m_renderer);
 }

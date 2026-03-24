@@ -34,7 +34,7 @@ TextPositioning TextPositioning::translated(Vec2F translation) const {
   return {pos + translation, hAnchor, vAnchor, wrapWidth, charLimit};
 }
 
-TextPainter::TextPainter(RendererPtr renderer, TextureGroupPtr textureGroup)
+TextPainter::TextPainter(V2::RendererPtr renderer, TextureGroupPtr textureGroup)
   : m_renderer(renderer),
     m_fontTextureGroup(textureGroup),
     m_defaultRenderSettings(),
