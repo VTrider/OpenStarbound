@@ -839,6 +839,7 @@ OpenGlRenderer::GlRenderBuffer::~GlRenderBuffer() {
 }
 
 void OpenGlRenderer::GlRenderBuffer::set(List<RenderPrimitive>& primitives) {
+  ZoneScoped;
   for (auto const& texture : usedTextures) {
     if (auto gt = as<GlGroupedTexture>(texture.get()))
       gt->decrementBufferUseCount();
@@ -1214,20 +1215,56 @@ GLuint OpenGlRenderer::Effect::getUniform(String const& name) {
 
 namespace V2 {
 
+GlMappedBuffer::GlMappedBuffer(uint32_t size) {
+  glCreateBuffers(1, &m_bufferHandle);
+
+  GLbitfield storageFlags = GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT;
+  glNamedBufferStorage(m_bufferHandle, size, nullptr, storageFlags);
+  m_map = glMapNamedBufferRange(m_bufferHandle, 0, size, storageFlags);
+}
+
+GlMappedBuffer::~GlMappedBuffer() noexcept {
+  glUnmapNamedBuffer(m_bufferHandle);
+  glDeleteBuffers(1, &m_bufferHandle);
+}
+
+void GlMappedBuffer::lock() {
+  if (m_fence) {
+    glDeleteSync(m_fence);
+  }
+  m_fence = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+}
+
+void GlMappedBuffer::waitSync() {
+  if (m_fence) {
+    glClientWaitSync(m_fence, GL_SYNC_FLUSH_COMMANDS_BIT, GL_TIMEOUT_IGNORED);
+    glDeleteSync(m_fence);
+    m_fence = nullptr;
+  }
+}
+
+void GlMappedBuffer::upload(void const* data, uint32_t size, uint32_t offset) {
+  waitSync();
+  uint8_t* dest = reinterpret_cast<uint8_t*>(m_map) + offset;
+  std::memcpy(dest, data, size);
+}
+  
 void OpenGlRenderer::submit(CommandBuffer const& cmd) {
-  PipelineDescriptor const* currentPipeline = nullptr;
-  VertexBuffer const* currentBuffer = nullptr;
+  PipelineDescriptorPtr currentPipeline = nullptr;
+  VertexBufferPtr currentBuffer = nullptr;
   
   for (const auto& [cmd, args] : cmd.m_commandList) {
     switch (cmd) {
         
       case CmdType::BindVertexBuffer: {
-        currentBuffer = &std::get<VertexBuffer>(args[0]);
+        currentBuffer = std::get<VertexBufferPtr>(args[0]);
+        break;
       }
       case CmdType::Draw: {
         GLuint vao = getPipelineVao(*currentPipeline, *currentBuffer);
         glBindVertexArray(vao);
         glDrawArraysInstanced(GL_TRIANGLES, 0, 0, 0);
+        break;
       }
     }
   }

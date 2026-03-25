@@ -30,6 +30,9 @@ EnvironmentPainter::EnvironmentPainter(V2::RendererPtr renderer) {
   m_textureGroup = make_shared<AssetTextureGroup>(m_renderer->createTextureGroup(TextureGroupSize::Large));
   m_timer = 0;
   m_rayPerlin = PerlinF(1, RayPerlinFrequency, RayPerlinAmplitude, 0, 2.0f, 2.0f, Random::randu64());
+
+
+
 }
 
 void EnvironmentPainter::update(float dt) {
@@ -94,6 +97,9 @@ void EnvironmentPainter::renderStars(float pixelRatio, Vec2F const& screenSize, 
       }
     }
   }
+
+  auto cmd = V2::CommandBuffer();
+  cmd.bindPipeline(m_starsPipeline);
 
   m_renderer->flush();
 }

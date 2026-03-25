@@ -191,23 +191,29 @@ public:
   uint32_t offset;
 };
 
-class BufferBase {
+STAR_CLASS(MappedBuffer);
+STAR_CLASS(VertexBuffer);
+STAR_CLASS(StorageBuffer);
+
+class MappedBuffer {
 public:
-  virtual ~BufferBase() = default;
+  MappedBuffer() = default;
+  MappedBuffer(MappedBuffer&) = delete;
+  virtual ~MappedBuffer() = default;
   virtual void upload(void const* data, uint32_t size, uint32_t offset) = 0;
 };
 
-class VertexBuffer : public BufferBase {
+class VertexBuffer : public MappedBuffer {
 public:
   virtual ~VertexBuffer() = default;
-  virtual void upload(void const* data, uint32_t size, uint32_t offset) = 0;
 };
 
-class StorageBuffer : public BufferBase {
+class StorageBuffer : public MappedBuffer {
 public:
   virtual ~StorageBuffer() = default;
-  virtual void upload(void const* data, uint32_t size, uint32_t offset) = 0;
 };
+
+STAR_CLASS(PipelineDescriptor);
 
 class PipelineDescriptor {
 public:
@@ -221,7 +227,7 @@ class DescriptorSet {
 public:
   DescriptorSet& bindStorageBuffer(StorageBuffer const& buf, uint32_t binding);
 
-  List<BufferBase> m_buffers;
+  List<MappedBuffer> m_buffers;
 };
 
 enum class CmdType {
@@ -229,11 +235,11 @@ enum class CmdType {
   Draw
 };
 
-using CmdArg = std::variant<VertexBuffer, uint32_t, PipelineDescriptor>;
+using CmdArg = std::variant<VertexBufferPtr, uint32_t, PipelineDescriptorPtr>;
 
 class CommandBuffer {
 public:
-  CommandBuffer& bindVertexBuffer(VertexBuffer const& buffer);
+  CommandBuffer& bindVertexBuffer(VertexBufferPtr buffer);
   CommandBuffer& bindPipeline(PipelineDescriptor const& pipeline);
   CommandBuffer& bindDescriptorSet(DescriptorSet const& descriptor);
   CommandBuffer& pushConstant();
@@ -248,6 +254,8 @@ class Renderer : virtual public Star::Renderer {
 public:
   virtual ~Renderer() = default;
   virtual void submit(CommandBuffer const& cmd) = 0;
+  virtual VertexBufferPtr getQuad() = 0;
+  virtual StorageBufferPtr instanceData() = 0;
 };
 
 } // namespace V2

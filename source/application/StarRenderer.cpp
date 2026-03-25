@@ -93,7 +93,7 @@ PipelineDescriptor& PipelineDescriptor::setAttribute(VertexAttribute const& attr
   return *this;
 }
 
-CommandBuffer& CommandBuffer::bindVertexBuffer(VertexBuffer const& buffer) {
+CommandBuffer& CommandBuffer::bindVertexBuffer(VertexBufferPtr buffer) {
   List<CmdArg> args;
   args.emplace_back(buffer);
   m_commandList.emplace_back(CmdType::BindVertexBuffer, std::move(args));
@@ -104,7 +104,7 @@ CommandBuffer& CommandBuffer::bindPipeline(PipelineDescriptor const& pipeline) {
   return *this;
 }
 
-CommandBuffer& CommandBuffer::bindDescriptorSet() {
+CommandBuffer& CommandBuffer::bindDescriptorSet(DescriptorSet const& descriptor) {
   return *this;
 }
 

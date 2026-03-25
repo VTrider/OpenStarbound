@@ -261,44 +261,23 @@ namespace V2 {
 
 STAR_CLASS(OpenGlRenderer);
 
-class GlVertexBuffer : public V2::VertexBuffer {
+class GlMappedBuffer : public V2::MappedBuffer {
 public:
-  GlVertexBuffer(uint32_t size) {
-    glCreateBuffers(1, &m_vbo);
-  
-    GLbitfield storageFlags = GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT;
-    glNamedBufferStorage(m_vbo, size, nullptr, storageFlags);
-    m_map = glMapNamedBufferRange(m_vbo, 0, size, storageFlags);
-  }
+  GlMappedBuffer(uint32_t size);
+  virtual ~GlMappedBuffer() noexcept override;
 
-  ~GlVertexBuffer() noexcept override {
-    glUnmapNamedBuffer(m_vbo);
-    glDeleteBuffers(1, &m_vbo);
-  }
-
-  void lock() {
-    if (m_fence) {
-      glDeleteSync(m_fence);
-    }
-    m_fence = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
-  }
-
-  void waitSync() {
-    glClientWaitSync(m_fence, GL_SYNC_FLUSH_COMMANDS_BIT, GL_TIMEOUT_IGNORED);
-    glDeleteSync(m_fence);
-    m_fence = nullptr;
-  }
-  
-  void upload(void const* data, uint32_t size, uint32_t offset) {
-    waitSync();
-    uint8_t* dest = reinterpret_cast<uint8_t*>(m_map) + offset;
-    std::memcpy(dest, data, size);
-  }
+  void lock();
+  void waitSync();
+  void upload(void const* data, uint32_t size, uint32_t offset) override;
 
 private:
-  GLuint m_vbo;
+  GLuint m_bufferHandle;
   GLsync m_fence;
   void* m_map;
+};
+
+class GlVertexBuffer : public GlMappedBuffer {
+  virtual ~GlVertexBuffer() = default;
 };
 
 // OpenGL 4.6 implementation of the renderer for Windows and Linux.
@@ -309,8 +288,8 @@ public:
   void submit(CommandBuffer const& cmd) override;
 
   private:
-    using VaoKey = std::pair<PipelineDescriptor*, VertexBuffer*>;
-    std::unordered_map<VaoKey, GLuint> m_vaoMap;
+    // using VaoKey = std::pair<PipelineDescriptor*, VertexBuffer*>;
+    // std::unordered_map<VaoKey, GLuint> m_vaoMap;
 
     GLuint getPipelineVao(PipelineDescriptor const& pipeline, VertexBuffer const& buf);
 };

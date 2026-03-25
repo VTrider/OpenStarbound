@@ -79,6 +79,9 @@ private:
   List<TexturePtr> m_starTextures;
   shared_ptr<Random2dPointGenerator<pair<size_t, float>>> m_starGenerator;
   List<shared_ptr<Random2dPointGenerator<pair<String, float>, double>>> m_debrisGenerators;
+
+  V2::CommandBuffer m_starsDrawCmd;
+  V2::PipelineDescriptor m_starsPipeline;
 };
 
 }
