@@ -19,6 +19,7 @@ public:
   void update(float dt);
 
   void renderStars(float pixelRatio, Vec2F const& screenSize, SkyRenderData const& sky);
+  void renderStarsV2(float pixelRatio, Vec2F const& screenSize, SkyRenderData const& sky);
   void renderDebrisFields(float pixelRatio, Vec2F const& screenSize, SkyRenderData const& sky);
   void renderBackOrbiters(float pixelRatio, Vec2F const& screenSize, SkyRenderData const& sky);
   void renderPlanetHorizon(float pixelRatio, Vec2F const& screenSize, SkyRenderData const& sky);
@@ -68,6 +69,7 @@ private:
 
   uint64_t starsHash(SkyRenderData const& sky, Vec2F const& viewSize) const;
   void setupStars(SkyRenderData const& sky);
+  void setupStarsV2(SkyRenderData const& sky);
 
   V2::RendererPtr m_renderer;
   AssetTextureGroupPtr m_textureGroup;
@@ -76,12 +78,18 @@ private:
   PerlinF m_rayPerlin;
 
   uint64_t m_starsHash{};
-  List<TexturePtr> m_starTextures;
+  List<V2::PooledTexturePtr> m_starTextures;
   shared_ptr<Random2dPointGenerator<pair<size_t, float>>> m_starGenerator;
   List<shared_ptr<Random2dPointGenerator<pair<String, float>, double>>> m_debrisGenerators;
 
   V2::CommandBuffer m_starsDrawCmd;
   V2::PipelineDescriptor m_starsPipeline;
+  V2::DescriptorSet m_starsDescriptorSet;
+
+  struct alignas(16) StarInstance {
+    uint64_t textureHandle;
+    Mat3F transform;
+  };
 };
 
 }

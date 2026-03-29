@@ -1,11 +1,18 @@
 #pragma once
 
+#include "StarAssetPath.hpp"
 #include "StarTextureAtlas.hpp"
 #include "StarRenderer.hpp"
 
 #include "GL/glew.h"
 
+#include "unordered_map"
+
 namespace Star {
+ 
+namespace V2 {
+class OpenGlRenderer;
+}
 
 STAR_CLASS(OpenGlRenderer);
 
@@ -34,7 +41,7 @@ public:
 
   bool switchEffectConfig(String const& name) override;
 
-  TexturePtr createTexture(Image const& texture, TextureAddressing addressing, TextureFiltering filtering) override;
+  virtual TexturePtr createTexture(Image const& texture, TextureAddressing addressing, TextureFiltering filtering) override;
   void setSizeLimitEnabled(bool enabled) override;
   void setMultiTexturingEnabled(bool enabled) override;
   void setMultiSampling(unsigned multiSampling) override;
@@ -52,7 +59,7 @@ public:
   void startFrame();
   void finishFrame();
 
-protected:
+public:
   struct GlTextureAtlasSet : public TextureAtlasSet<GLuint> {
   public:
     GlTextureAtlasSet(unsigned atlasNumCells);
@@ -74,7 +81,9 @@ protected:
     GlTextureAtlasSet textureAtlasSet;
   };
 
-  struct GlTexture : public Texture {
+  friend class V2::OpenGlRenderer;
+
+  struct GlTexture : virtual public Texture {
     virtual GLuint glTextureId() const = 0;
     virtual Vec2U glTextureSize() const = 0;
     virtual Vec2U glTextureCoordinateOffset() const = 0;
@@ -266,9 +275,10 @@ public:
   GlMappedBuffer(uint32_t size);
   virtual ~GlMappedBuffer() noexcept override;
 
-  void lock();
-  void waitSync();
+  void lock() override;
+  void waitSync() override;
   void upload(void const* data, uint32_t size, uint32_t offset) override;
+  virtual uint32_t handle() override;
 
 private:
   GLuint m_bufferHandle;
@@ -276,22 +286,75 @@ private:
   void* m_map;
 };
 
-class GlVertexBuffer : public GlMappedBuffer {
-  virtual ~GlVertexBuffer() = default;
-};
-
 // OpenGL 4.6 implementation of the renderer for Windows and Linux.
 // Dispatches calls to the legacy renderer on MacOS
 class OpenGlRenderer : public Star::OpenGlRenderer, public V2::Renderer {
 public:
+  class GlBindlessTexture : public Star::OpenGlRenderer::GlTexture, public PooledTexture {
+  public:
+    virtual ~GlBindlessTexture();
+
+    Vec2U size() const override;
+    TextureFiltering filtering() const override;
+    TextureAddressing addressing() const override;
+
+    GLuint glTextureId() const;
+    Vec2U glTextureSize() const;
+    Vec2U glTextureCoordinateOffset() const override; // unused but required to interop with the old renderer
+    uint64_t handle() const override;
+    uint32_t poolIndex() const override;
+
+    GLuint textureId = 0;
+    Vec2U textureSize;
+    TextureAddressing textureAddressing = TextureAddressing::Clamp;
+    TextureFiltering textureFiltering = TextureFiltering::Nearest;
+
+    GLuint64 residentHandle = 0;
+    uint32_t m_poolIndex = 0;
+  };
+
+  OpenGlRenderer();
   virtual ~OpenGlRenderer() = default;
   void submit(CommandBuffer const& cmd) override;
+
+  // This pretty scuffed, if someone wants to implement a metal backend go ahead (:
+  #ifdef STAR_PLATFORM_MACOS
+  bool v2Available() override {
+    return false;
+  }
+  #else
+  bool v2Available() override {
+    return true;
+  }
+  #endif
+
+  virtual TexturePtr createTexture(Image const& texture, TextureAddressing addressing, TextureFiltering filtering) override;
+
+  // Retrieves a pooled texture handle or loads it from the image path if it's unloaded
+  PooledTexturePtr loadPooledTexture(AssetPath const& imagePath) override;
+
+  MappedBufferPtr unitQuad();
+  MappedBufferPtr instanceData();
+
+  MappedBufferPtr texturePool();
 
   private:
     // using VaoKey = std::pair<PipelineDescriptor*, VertexBuffer*>;
     // std::unordered_map<VaoKey, GLuint> m_vaoMap;
+    const size_t m_maxTextures = 50000; // 400kb vram (texture handle is 8 bytes)
+    const size_t m_instanceDataSize = 2.5e7;// 25MB vram
 
-    GLuint getPipelineVao(PipelineDescriptor const& pipeline, VertexBuffer const& buf);
+    GLuint m_emptyVao; // OpenGL requires that a VAO is bound for a draw call but we're not using it
+    MappedBufferPtr m_texturePool;
+    MappedBufferPtr m_instanceData;
+    size_t m_poolEndOffset = 0; // offset in bytes to the next available slot in the texture pool
+    std::unordered_map<ImageConstPtr, PooledTexturePtr> m_textureMap;
+    std::unordered_map<std::string, GLuint> m_programConfigMap;
+
+    MappedBufferPtr m_unitQuad;
+
+    GLuint getProgramConfig(String const& programConfig);
+    RefPtr<GlBindlessTexture> createGlBindlessTexture(ImageView const& texture, TextureAddressing addressing, TextureFiltering filtering);
 };
 
 }

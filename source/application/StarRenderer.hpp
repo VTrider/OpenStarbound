@@ -7,7 +7,9 @@
 #include "StarBiMap.hpp"
 #include "StarRefPtr.hpp"
 #include "StarList.hpp"
+#include "StarAssetPath.hpp"
 
+#include "unordered_map"
 #include "utility"
 #include "variant"
 
@@ -192,25 +194,17 @@ public:
 };
 
 STAR_CLASS(MappedBuffer);
-STAR_CLASS(VertexBuffer);
-STAR_CLASS(StorageBuffer);
 
 class MappedBuffer {
 public:
   MappedBuffer() = default;
   MappedBuffer(MappedBuffer&) = delete;
   virtual ~MappedBuffer() = default;
+
+  virtual void lock() = 0;
+  virtual void waitSync() = 0;
   virtual void upload(void const* data, uint32_t size, uint32_t offset) = 0;
-};
-
-class VertexBuffer : public MappedBuffer {
-public:
-  virtual ~VertexBuffer() = default;
-};
-
-class StorageBuffer : public MappedBuffer {
-public:
-  virtual ~StorageBuffer() = default;
+  virtual uint32_t handle() = 0;
 };
 
 STAR_CLASS(PipelineDescriptor);
@@ -218,44 +212,66 @@ STAR_CLASS(PipelineDescriptor);
 class PipelineDescriptor {
 public:
   PipelineDescriptor& setAttribute(VertexAttribute const& attrib);
+  PipelineDescriptor& setProgram(String const& programConfig);
 
-private:
   List<VertexAttribute> m_attributes;
+  String m_programConfig;
 };
 
 class DescriptorSet {
 public:
-  DescriptorSet& bindStorageBuffer(StorageBuffer const& buf, uint32_t binding);
+  DescriptorSet& bindUniformBuffer(uint32_t binding, MappedBufferPtr buf);
+  DescriptorSet& bindStorageBuffer(uint32_t binding, MappedBufferPtr buf);
 
-  List<MappedBuffer> m_buffers;
+  List<std::pair<uint32_t, MappedBufferPtr>> m_uniformBindings;
+  List<std::pair<uint32_t, MappedBufferPtr>> m_storageBindings;
 };
 
 enum class CmdType {
   BindVertexBuffer,
+  BindPipeline,
+  BindDescriptorSet,
+  PushConstant,
   Draw
 };
 
-using CmdArg = std::variant<VertexBufferPtr, uint32_t, PipelineDescriptorPtr>;
+using ProgramConstantType = std::variant<float, Vec2F, Vec3F, Mat3F>;
+using ProgramConstantInfo = std::pair<uint32_t, ProgramConstantType>;
+using CmdArg = std::variant<MappedBufferPtr, uint32_t, const PipelineDescriptor*, const DescriptorSet*, ProgramConstantInfo>;
 
 class CommandBuffer {
 public:
-  CommandBuffer& bindVertexBuffer(VertexBufferPtr buffer);
+  CommandBuffer& bindVertexBuffer(MappedBufferPtr buffer);
   CommandBuffer& bindPipeline(PipelineDescriptor const& pipeline);
   CommandBuffer& bindDescriptorSet(DescriptorSet const& descriptor);
-  CommandBuffer& pushConstant();
+  CommandBuffer& pushConstant(uint32_t location, ProgramConstantType constant);
   CommandBuffer& draw(uint32_t count, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance);
 
   List<std::pair<CmdType, List<CmdArg>>> m_commandList;
 };
+
+class PooledTexture : virtual public Star::Texture {
+public:
+  virtual uint64_t handle() const = 0;
+  virtual uint32_t poolIndex() const = 0;
+};
+
+using PooledTexturePtr = RefPtr<PooledTexture>;
 
 STAR_CLASS(Renderer);
 
 class Renderer : virtual public Star::Renderer {
 public:
   virtual ~Renderer() = default;
+
+  virtual bool v2Available() = 0; // v2 isn't available on MacOS currently due to not supporting modern OpenGL
+  virtual PooledTexturePtr loadPooledTexture(AssetPath const& imagePath) = 0;
+
   virtual void submit(CommandBuffer const& cmd) = 0;
-  virtual VertexBufferPtr getQuad() = 0;
-  virtual StorageBufferPtr instanceData() = 0;
+
+  virtual MappedBufferPtr unitQuad() = 0;
+  virtual MappedBufferPtr instanceData() = 0; // this buffer holds per instance data for draw calls
+  virtual MappedBufferPtr texturePool() = 0; // this buffer holds bindless texture handles
 };
 
 } // namespace V2

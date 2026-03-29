@@ -31,8 +31,11 @@ EnvironmentPainter::EnvironmentPainter(V2::RendererPtr renderer) {
   m_timer = 0;
   m_rayPerlin = PerlinF(1, RayPerlinFrequency, RayPerlinAmplitude, 0, 2.0f, 2.0f, Random::randu64());
 
+  m_starsDescriptorSet = V2::DescriptorSet();
+  m_starsDescriptorSet.bindStorageBuffer(1, m_renderer->instanceData());
 
-
+  m_starsPipeline = V2::PipelineDescriptor();
+  m_starsPipeline.setProgram("stars");
 }
 
 void EnvironmentPainter::update(float dt) {
@@ -43,6 +46,11 @@ void EnvironmentPainter::update(float dt) {
 
 void EnvironmentPainter::renderStars(float pixelRatio, Vec2F const& screenSize, SkyRenderData const& sky) {
   ZoneScoped;
+
+  if (m_renderer->v2Available()) {
+    return renderStarsV2(pixelRatio, screenSize, sky);
+  }
+
   float nightSkyAlpha = 1.0f - min(sky.dayLevel, sky.skyAlpha);
   if (nightSkyAlpha <= 0.0f)
     return;
@@ -98,11 +106,88 @@ void EnvironmentPainter::renderStars(float pixelRatio, Vec2F const& screenSize, 
     }
   }
 
+  m_renderer->flush();
+}
+
+void EnvironmentPainter::renderStarsV2(float pixelRatio, Vec2F const& screenSize, SkyRenderData const& sky) {
+  ZoneScoped;
+  float nightSkyAlpha = 1.0f - min(sky.dayLevel, sky.skyAlpha);
+  if (nightSkyAlpha <= 0.0f)
+    return;
+
+  Vec4B color(255, 255, 255, 255 * nightSkyAlpha);
+
+  Vec2F viewSize = screenSize / pixelRatio;
+  Vec2F viewCenter = viewSize / 2;
+  Vec2F viewMin = sky.starOffset - viewCenter;
+
+  auto newStarsHash = starsHash(sky, viewSize);
+  if (newStarsHash != m_starsHash || !m_starGenerator) {
+    m_starsHash = newStarsHash;
+    setupStars(sky);
+  }
+
+  if (!m_starGenerator || !sky.settings || sky.starFrames == 0 || sky.starTypes().empty())
+    return;
+
+  float screenBuffer = sky.settings.queryFloat("stars.screenBuffer");
+
+  PolyF field = PolyF(RectF::withSize(viewMin, Vec2F(viewSize)).padded(screenBuffer));
+  field.rotate(-sky.starRotation, Vec2F(sky.starOffset));
+
+  Mat3F transform = Mat3F::identity();
+  transform.translate(-viewMin);
+  transform.rotate(sky.starRotation, viewCenter);
+
+  int starTwinkleMin = sky.settings.queryInt("stars.twinkleMin");
+  int starTwinkleMax = sky.settings.queryInt("stars.twinkleMax");
+  size_t starTypesSize = sky.starTypes().size();
+
+  auto stars = m_starGenerator->generate(field, [&](RandomSource& rand) {
+      size_t starType = rand.randu32() % starTypesSize;
+      float frameOffset = rand.randu32() % sky.starFrames + rand.randf(starTwinkleMin, starTwinkleMax);
+      return pair<size_t, float>(starType, frameOffset);
+    });
+
+  RectF viewRect = RectF::withSize(Vec2F(), viewSize).padded(screenBuffer);
+
+  auto& primitives = m_renderer->immediatePrimitives();
+  primitives.reserve(primitives.size() + stars.size());
+
+  {
+    ZoneScopedN("star loop");
+    for (auto& star : stars) {
+      Vec2F screenPos = transform.transformVec2(star.first);
+      if (viewRect.contains(screenPos)) {
+        size_t starFrame = (size_t)(sky.epochTime + star.second.second) % sky.starFrames;
+        if (auto const& texture = m_starTextures[star.second.first * sky.starFrames + starFrame]) {
+          Vec2F texSize = Vec2F(texture->size());
+          Vec2F pos = (screenPos * pixelRatio) - (texSize / 2.0f);
+
+          Mat3F instanceTransform = Mat3F::translation(pos) * Mat3F::scaling(texSize);
+
+          StarInstance instance;
+          instance.transform = instanceTransform;
+          instance.textureHandle = texture->handle();
+
+          // primitives.emplace_back(std::in_place_type_t<RenderQuad>(), texture, screenPos * pixelRatio - Vec2F(texture->size()) / 2, 1.0, color, 0.0f);
+        }
+      }
+    }
+  }
+
   auto cmd = V2::CommandBuffer();
-  cmd.bindPipeline(m_starsPipeline);
+  cmd.bindVertexBuffer(m_renderer->unitQuad())
+    .bindPipeline(m_starsPipeline)
+    .bindDescriptorSet(m_starsDescriptorSet)
+    .pushConstant(0, screenSize)
+    .draw(6, stars.size(), 0, 0);
+
+  m_renderer->submit(cmd);
 
   m_renderer->flush();
 }
+
 
 void EnvironmentPainter::renderDebrisFields(float pixelRatio, Vec2F const& screenSize, SkyRenderData const& sky) {
   ZoneScoped;
@@ -480,6 +565,10 @@ uint64_t EnvironmentPainter::starsHash(SkyRenderData const& sky, Vec2F const& vi
 
 void EnvironmentPainter::setupStars(SkyRenderData const& sky) {
   ZoneScoped;
+
+  if (m_renderer->v2Available())
+    return setupStarsV2(sky);
+
   if (!sky.settings)
     return;
 
@@ -490,6 +579,7 @@ void EnvironmentPainter::setupStars(SkyRenderData const& sky) {
   for (size_t i = 0; i < starTypesSize; ++i) {
     for (size_t j = 0; j < sky.starFrames; ++j)
       m_starTextures[i * sky.starFrames + j] = m_textureGroup->loadTexture(starTypes[i] + ":" + toString(j));
+      // m_starTextures[i * sky.starFrames + j] = m_renderer->loadPooledTexture(starTypes[i] + ":" + toString(j));
   }
 
   int starCellSize = sky.settings.queryInt("stars.cellSize");
@@ -506,5 +596,36 @@ void EnvironmentPainter::setupStars(SkyRenderData const& sky) {
     m_debrisGenerators[i] = make_shared<Random2dPointGenerator<pair<String, float>, double>>(debrisSeed, debrisCellSize, debrisCountRange);
   }
 }
+
+void EnvironmentPainter::setupStarsV2(SkyRenderData const& sky) {
+  ZoneScoped;
+
+  if (!sky.settings)
+    return;
+
+  StringList const& starTypes = sky.starTypes();
+  size_t starTypesSize = starTypes.size();
+
+  m_starTextures.resize(starTypesSize * sky.starFrames);
+  for (size_t i = 0; i < starTypesSize; ++i) {
+    for (size_t j = 0; j < sky.starFrames; ++j)
+      m_starTextures[i * sky.starFrames + j] = m_renderer->loadPooledTexture(starTypes[i] + ":" + toString(j));
+  }
+
+  int starCellSize = sky.settings.queryInt("stars.cellSize");
+  Vec2I starCount = jsonToVec2I(sky.settings.query("stars.cellCount"));
+
+  m_starGenerator = make_shared<Random2dPointGenerator<pair<size_t, float>>>(sky.skyParameters.seed, starCellSize, starCount);
+
+  JsonArray debrisFields = sky.settings.queryArray("spaceDebrisFields");
+  m_debrisGenerators.resize(debrisFields.size());
+  for (size_t i = 0; i < debrisFields.size(); ++i) {
+    int debrisCellSize = debrisFields[i].getInt("cellSize");
+    Vec2I debrisCountRange = jsonToVec2I(debrisFields[i].get("cellCountRange"));
+    uint64_t debrisSeed = staticRandomU64(sky.skyParameters.seed, i, "DebrisFieldSeed");
+    m_debrisGenerators[i] = make_shared<Random2dPointGenerator<pair<String, float>, double>>(debrisSeed, debrisCellSize, debrisCountRange);
+  }
+}
+
 
 }

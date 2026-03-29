@@ -1,5 +1,9 @@
 #include "StarRenderer.hpp"
 
+#include "StarAssetPath.hpp"
+#include "StarFormat.hpp"
+#include "StarRoot.hpp"
+
 namespace Star {
 
 EnumMap<TextureAddressing> const TextureAddressingNames{
@@ -93,7 +97,25 @@ PipelineDescriptor& PipelineDescriptor::setAttribute(VertexAttribute const& attr
   return *this;
 }
 
-CommandBuffer& CommandBuffer::bindVertexBuffer(VertexBufferPtr buffer) {
+PipelineDescriptor& PipelineDescriptor::setProgram(String const& programConfig) {
+  m_programConfig = programConfig;
+  return *this;
+}
+
+DescriptorSet& DescriptorSet::bindUniformBuffer(uint32_t binding, MappedBufferPtr buf) {
+  m_uniformBindings.emplace_back(binding, buf);
+  return *this;
+}
+
+DescriptorSet& DescriptorSet::bindStorageBuffer(uint32_t binding, MappedBufferPtr buf) {
+  if (binding == 0)
+    throw RendererException("DescriptorSet::bindStorageBuffer: binding 0 is reserved for vertex attributes");
+
+  m_storageBindings.emplace_back(binding, buf);
+  return *this;
+}
+
+CommandBuffer& CommandBuffer::bindVertexBuffer(MappedBufferPtr buffer) {
   List<CmdArg> args;
   args.emplace_back(buffer);
   m_commandList.emplace_back(CmdType::BindVertexBuffer, std::move(args));
@@ -101,22 +123,37 @@ CommandBuffer& CommandBuffer::bindVertexBuffer(VertexBufferPtr buffer) {
 }
 
 CommandBuffer& CommandBuffer::bindPipeline(PipelineDescriptor const& pipeline) {
+  List<CmdArg> args;
+  args.emplace_back(&pipeline);
+  m_commandList.emplace_back(CmdType::BindPipeline, std::move(args));
   return *this;
 }
 
 CommandBuffer& CommandBuffer::bindDescriptorSet(DescriptorSet const& descriptor) {
+  List<CmdArg> args;
+  args.emplace_back(&descriptor);
+  m_commandList.emplace_back(CmdType::BindDescriptorSet, std::move(args));
   return *this;
 }
 
-CommandBuffer& CommandBuffer::pushConstant() {
+CommandBuffer& CommandBuffer::pushConstant(uint32_t location, ProgramConstantType constant) {
+  List<CmdArg> args;
+  args.emplace_back(std::in_place_type_t<ProgramConstantInfo>(), location, constant);
+  m_commandList.emplace_back(CmdType::PushConstant, std::move(args));
   return *this;
 }
 
 CommandBuffer& CommandBuffer::draw(uint32_t count, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance) {
+  List<CmdArg> args;
+  args.emplace_back(count);
+  args.emplace_back(instanceCount);
+  args.emplace_back(firstVertex);
+  args.emplace_back(firstInstance);
+  m_commandList.emplace_back(CmdType::Draw, std::move(args));
   return *this;
 }
 
-} // namespace V2
+}// namespace V2
 
 } // namespace Star
 

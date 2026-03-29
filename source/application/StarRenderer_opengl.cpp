@@ -2,6 +2,7 @@
 #include "StarJsonExtra.hpp"
 #include "StarCasting.hpp"
 #include "StarLogging.hpp"
+#include "StarRoot.hpp"
 
 #define TRACY_ENABLE
 #define TRACY_DELAYED_INIT
@@ -595,6 +596,7 @@ TextureGroupPtr OpenGlRenderer::createTextureGroup(TextureGroupSize textureSize,
 }
 
 RenderBufferPtr OpenGlRenderer::createRenderBuffer() {
+  ZoneScoped;
   return createGlRenderBuffer();
 }
 
@@ -1218,7 +1220,7 @@ namespace V2 {
 GlMappedBuffer::GlMappedBuffer(uint32_t size) {
   glCreateBuffers(1, &m_bufferHandle);
 
-  GLbitfield storageFlags = GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT;
+  GLbitfield storageFlags = GL_MAP_WRITE_BIT | GL_MAP_READ_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT;
   glNamedBufferStorage(m_bufferHandle, size, nullptr, storageFlags);
   m_map = glMapNamedBufferRange(m_bufferHandle, 0, size, storageFlags);
 }
@@ -1248,30 +1250,278 @@ void GlMappedBuffer::upload(void const* data, uint32_t size, uint32_t offset) {
   uint8_t* dest = reinterpret_cast<uint8_t*>(m_map) + offset;
   std::memcpy(dest, data, size);
 }
-  
+
+uint32_t GlMappedBuffer::handle() {
+  return m_bufferHandle;
+}
+
+OpenGlRenderer::GlBindlessTexture::~GlBindlessTexture() {
+  glMakeTextureHandleNonResidentARB(residentHandle);
+  glDeleteTextures(1, &textureId);
+}
+
+Vec2U OpenGlRenderer::GlBindlessTexture::size() const {
+  return textureSize;
+}
+
+TextureFiltering OpenGlRenderer::GlBindlessTexture::filtering() const {
+  return textureFiltering;
+}
+
+TextureAddressing OpenGlRenderer::GlBindlessTexture::addressing() const {
+  return textureAddressing;
+}
+
+GLuint OpenGlRenderer::GlBindlessTexture::glTextureId() const {
+  return textureId;
+}
+
+Vec2U OpenGlRenderer::GlBindlessTexture::glTextureSize() const {
+  return textureSize;
+}
+
+Vec2U OpenGlRenderer::GlBindlessTexture::glTextureCoordinateOffset() const {
+  return Vec2U();
+}
+
+GLuint64 OpenGlRenderer::GlBindlessTexture::handle() const {
+  return residentHandle;
+}
+
+uint32_t OpenGlRenderer::GlBindlessTexture::poolIndex() const {
+  return m_poolIndex;
+}
+
+OpenGlRenderer::OpenGlRenderer() : Star::OpenGlRenderer() {
+  if (!v2Available()) {
+    Logger::info("Using legacy OpenGL renderer, v2 unavailable");
+    return;
+  }
+
+  Logger::info("Using OpenGL renderer v2");
+
+  auto textureHandleSize = sizeof(GLuint64);
+  m_texturePool = std::make_unique<GlMappedBuffer>(m_maxTextures * textureHandleSize);
+
+  // Padded to std430 ssbo spec
+  float quadVertices[] = {
+      -0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  0.0f,  0.0f,  0.0f,
+       0.5f, -0.5f,  0.0f,  1.0f,  1.0f,  0.0f,  0.0f,  0.0f,
+      -0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  1.0f,  0.0f,  0.0f,
+
+      -0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  1.0f,  0.0f,  0.0f,
+       0.5f, -0.5f,  0.0f,  1.0f,  1.0f,  0.0f,  0.0f,  0.0f,
+       0.5f,  0.5f,  0.0f,  1.0f,  1.0f,  1.0f,  0.0f,  0.0f 
+  };
+
+  m_unitQuad = std::make_unique<GlMappedBuffer>(sizeof(quadVertices));
+  m_unitQuad->upload(quadVertices, sizeof(quadVertices), 0);
+
+  m_instanceData = std::make_unique<GlMappedBuffer>(m_instanceDataSize);
+  glCreateVertexArrays(1, &m_emptyVao);
+}
+
+template<class... Ts> struct Overloaded : Ts... { using Ts::operator()...; };
+template<class... Ts> Overloaded(Ts...) -> Overloaded<Ts...>;
+
 void OpenGlRenderer::submit(CommandBuffer const& cmd) {
-  PipelineDescriptorPtr currentPipeline = nullptr;
-  VertexBufferPtr currentBuffer = nullptr;
+  PipelineDescriptor* currentPipeline = nullptr;
+  MappedBufferPtr vertexBuffer = nullptr;
+  GLuint program = 0;
   
   for (const auto& [cmd, args] : cmd.m_commandList) {
     switch (cmd) {
-        
       case CmdType::BindVertexBuffer: {
-        currentBuffer = std::get<VertexBufferPtr>(args[0]);
+        vertexBuffer = std::get<MappedBufferPtr>(args[0]);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, vertexBuffer->handle());
+        break;
+      }
+      case CmdType::BindPipeline: {
+        const auto* pipeline = std::get<const PipelineDescriptor*>(args[0]);
+        if (vertexBuffer) {
+
+        }
+
+        program = getProgramConfig(pipeline->m_programConfig);
+        glUseProgram(program);
+        break;
+      }
+      case CmdType::PushConstant: {
+        if (!program)
+          throw RendererException("CmdType::PushConstant: Pipeline is unbound");
+
+        ProgramConstantInfo info = std::get<ProgramConstantInfo>(args[0]);
+        uint32_t location = info.first;
+        ProgramConstantType constant = info.second;
+        std::visit(Overloaded{
+          [=](float f) {
+            glProgramUniform1f(program, location, f);
+          },
+          [=](Vec2F const& v) {
+            glProgramUniform2f(program, location, v.x(), v.y());
+          },
+          [=](Vec3F const& v) {
+            glProgramUniform3f(program, location, v.x(), v.y(), v.z());
+          },
+          [=](Mat3F const& m) {
+            glProgramUniformMatrix3fv(program, location, 1, GL_FALSE, reinterpret_cast<const float*>(&m));
+          },
+          [](const auto&) {
+            throw RendererException("Cmd::PushConstant: Unsupported uniform type");
+          }},
+          constant
+        );
         break;
       }
       case CmdType::Draw: {
-        GLuint vao = getPipelineVao(*currentPipeline, *currentBuffer);
-        glBindVertexArray(vao);
-        glDrawArraysInstanced(GL_TRIANGLES, 0, 0, 0);
+        glBindVertexArray(m_emptyVao);
+        uint32_t count = std::get<uint32_t>(args[0]);
+        uint32_t instanceCount = std::get<uint32_t>(args[1]);
+        uint32_t firstVertex = std::get<uint32_t>(args[2]);
+        uint32_t firstInstance = std::get<uint32_t>(args[3]);
+        glDrawArraysInstancedBaseInstance(GL_TRIANGLES, firstVertex, count, instanceCount, firstInstance);
         break;
       }
     }
   }
 }
 
-GLuint OpenGlRenderer::getPipelineVao(PipelineDescriptor const& pipeline, VertexBuffer const& buf) {
+TexturePtr OpenGlRenderer::createTexture(Image const& image, TextureAddressing addressing, TextureFiltering filtering) {
+  return createGlBindlessTexture(image, addressing, filtering);
+}
+
+PooledTexturePtr OpenGlRenderer::loadPooledTexture(AssetPath const& imagePath) {
+  auto assets = Root::singleton().assets();
+  ImageConstPtr image = assets->image(imagePath);
+
+  if (auto it = m_textureMap.find(image); it != m_textureMap.end())
+    return it->second;
+
+  auto tex = createGlBindlessTexture(*image, TextureAddressing::Clamp, TextureFiltering::Linear);
+  size_t handleSize = sizeof(tex->residentHandle);
+  m_texturePool->upload(&tex->residentHandle, handleSize, m_poolEndOffset);
+  m_texturePool->lock();
+  tex->m_poolIndex = m_poolEndOffset / handleSize;
+  m_poolEndOffset += handleSize;
+
+  m_textureMap.emplace(image, tex);
+  return tex;
+}
+
+MappedBufferPtr OpenGlRenderer::unitQuad() {
+  return m_unitQuad;
+}
+
+MappedBufferPtr OpenGlRenderer::instanceData() {
+  return m_instanceData;
+}
+
+MappedBufferPtr OpenGlRenderer::texturePool() {
+  return m_texturePool;
+}
+
+GLuint OpenGlRenderer::getProgramConfig(String const& programConfig) {
+  if (auto it = m_programConfigMap.find(programConfig.utf8()); it != m_programConfigMap.end()) {
+    return it->second;
+  }
+
+ auto& assets = Root::singleton().assets();
+  String path = strf("/rendering/v2/{}.config", programConfig);
+  if (assets->assetExists(path)) {
+    StringMap<String> shaders;
+    auto config = assets->json(path);
+    auto shaderConfig = config.getObject("effectShaders");
+    for (auto& entry : shaderConfig) {
+      if (entry.second.isType(Json::Type::String)) {
+        String shader = entry.second.toString();
+        if (!shader.hasChar('\n')) {
+          auto shaderBytes = assets->bytes(AssetPath::relativeTo(path, shader));
+          shader = std::string(shaderBytes->ptr(), shaderBytes->size());
+        }
+        shaders[entry.first] = shader;
+      }
+    }
+
+    // m_renderer->loadEffectConfig(name, config, shaders);
+  } else
+    throw RendererException::format("Could not find config for program {}", programConfig);
+
+
   return GLuint();
+}
+
+RefPtr<OpenGlRenderer::GlBindlessTexture> OpenGlRenderer::createGlBindlessTexture(ImageView const& image, TextureAddressing addressing, TextureFiltering filtering) {
+  auto tex = make_ref<GlBindlessTexture>();
+  tex->textureFiltering = filtering;
+  tex->textureAddressing = addressing;
+  tex->textureSize = image.size;
+
+  glCreateTextures(GL_TEXTURE_2D, 1, &tex->textureId);
+  if (tex->textureId == 0)
+    throw RendererException("Could not generate texture in OpenGlRenderer::createGlBindlessTexture");
+
+  if (addressing == TextureAddressing::Clamp) {
+    glTextureParameteri(tex->textureId, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTextureParameteri(tex->textureId, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+  } else {
+    glTextureParameteri(tex->textureId, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTextureParameteri(tex->textureId, GL_TEXTURE_WRAP_T, GL_REPEAT);
+  }
+
+  if (filtering == TextureFiltering::Nearest) {
+    glTextureParameterf(tex->textureId, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTextureParameterf(tex->textureId, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+  } else {
+    glTextureParameterf(tex->textureId, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTextureParameterf(tex->textureId, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+  }
+
+  if (!image.empty()) {
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+
+    GLenum internalFormat;
+    GLenum format;
+    GLenum type = GL_UNSIGNED_BYTE;
+    if (image.format == PixelFormat::RGB24) {
+      internalFormat = GL_RGB8;
+      format = GL_RGB;
+    } else if (image.format == PixelFormat::RGBA32) {
+      internalFormat = GL_RGBA8;
+      format = GL_RGBA;
+    } else if (image.format == PixelFormat::BGR24) {
+      internalFormat = GL_RGB8;
+      format = GL_BGR;
+    } else if (image.format == PixelFormat::BGRA32) {
+      internalFormat = GL_RGBA8;
+      format = GL_BGRA;
+    } else {
+      type = GL_FLOAT;
+      if (image.format == PixelFormat::RGB_F) {
+        internalFormat = GL_RGB32F;
+        format = GL_RGB;
+      } else if (image.format == PixelFormat::RGBA_F) {
+        internalFormat = GL_RGBA32F;
+        format = GL_RGBA;
+      } else
+        throw RendererException("Unsupported texture format in OpenGlRenderer::uploadTextureImage");
+    }
+
+    glTextureStorage2D(tex->textureId, 1, internalFormat, image.size[0], image.size[1]);
+    glTextureSubImage2D(tex->textureId, 0, 0, 0, image.size[0], image.size[1], format, type, image.data);
+  }
+
+  tex->residentHandle = glGetTextureHandleARB(tex->textureId);
+  glMakeTextureHandleResidentARB(tex->residentHandle);
+
+
+  // TODO: Fix
+  GLenum err;
+  while ((err = glGetError()) != GL_NO_ERROR) {
+      // Use gluErrorString (if using GLU) or a custom map to print the name
+      std::cout << "OpenGL Error: " << err << std::endl;
+  }
+
+  return tex;
 }
 
 } // namespace V2

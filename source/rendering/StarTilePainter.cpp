@@ -177,6 +177,7 @@ void TilePainter::renderTerrainChunks(WorldCamera const& camera, TerrainLayer te
 }
 
 shared_ptr<TilePainter::TerrainChunk const> TilePainter::getTerrainChunk(WorldRenderData& renderData, Vec2I chunkIndex) {
+  ZoneScoped;
   pair<Vec2I, ChunkHash> chunkKey = {chunkIndex, terrainChunkHash(renderData, chunkIndex)};
   return m_terrainChunkCache.get(chunkKey, [&](auto const&) {
       HashMap<TerrainLayer, HashMap<QuadZLevel, List<RenderPrimitive>>> terrainPrimitives;
@@ -370,6 +371,7 @@ bool TilePainter::produceTerrainPrimitives(HashMap<QuadZLevel, List<RenderPrimit
 }
 
 void TilePainter::produceLiquidPrimitives(HashMap<LiquidId, List<RenderPrimitive>>& primitives, Vec2I const& pos, WorldRenderData const& renderData) {
+  ZoneScoped;
   RenderTile const& tile = getRenderTile(renderData, pos);
 
   float drawLevel = liquidDrawLevel(byteToFloat(tile.liquidLevel));
