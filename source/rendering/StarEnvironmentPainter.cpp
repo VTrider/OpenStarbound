@@ -33,11 +33,12 @@ EnvironmentPainter::EnvironmentPainter(V2::RendererPtr renderer) {
   m_timer = 0;
   m_rayPerlin = PerlinF(1, RayPerlinFrequency, RayPerlinAmplitude, 0, 2.0f, 2.0f, Random::randu64());
 
-  m_starsDescriptorSet = V2::DescriptorSet();
-  m_starsDescriptorSet.bindStorageBuffer(1, m_renderer->instanceData());
+  m_starsDescriptorSet = V2::DescriptorSet()
+    .bindStorageBuffer(1, m_renderer->instanceData())
+    .bindStorageBuffer(2, m_renderer->texturePool());
 
-  m_starsPipeline = V2::PipelineDescriptor();
-  m_starsPipeline.setProgram("stars");
+  m_starsPipeline = V2::PipelineDescriptor()
+    .setProgram("stars");
 }
 
 void EnvironmentPainter::update(float dt) {
@@ -153,16 +154,16 @@ void EnvironmentPainter::renderStarsV2(float pixelRatio, Vec2F const& screenSize
 
   RectF viewRect = RectF::withSize(Vec2F(), viewSize).padded(screenBuffer);
 
-  auto& primitives = m_renderer->immediatePrimitives();
-  primitives.reserve(primitives.size() + stars.size());
 
   {
     ZoneScopedN("star loop");
+    uint32_t nextInstanceOffset = 0;
+    m_renderer->instanceData()->waitFence();
     for (auto& star : stars) {
       Vec2F screenPos = transform.transformVec2(star.first);
       if (viewRect.contains(screenPos)) {
         size_t starFrame = (size_t)(sky.epochTime + star.second.second) % sky.starFrames;
-        if (auto const& texture = m_starTextures[star.second.first * sky.starFrames + starFrame]) {
+        if (auto const& texture = m_starTexturesV2[star.second.first * sky.starFrames + starFrame]) {
           Vec2F texSize = Vec2F(texture->size());
           Vec2F pos = (screenPos * pixelRatio) - (texSize / 2.0f);
 
@@ -172,22 +173,23 @@ void EnvironmentPainter::renderStarsV2(float pixelRatio, Vec2F const& screenSize
           instance.transform = instanceTransform;
           instance.textureIndex = texture->poolIndex();
 
-          // primitives.emplace_back(std::in_place_type_t<RenderQuad>(), texture, screenPos * pixelRatio - Vec2F(texture->size()) / 2, 1.0, color, 0.0f);
+          m_renderer->instanceData()->upload(&instance, sizeof(instance), nextInstanceOffset);
+          nextInstanceOffset += sizeof(instance);
         }
       }
     }
   }
 
-  //auto cmd = V2::CommandBuffer();
-  //cmd.bindVertexBuffer(m_renderer->unitQuad())
-  //  .bindPipeline(m_starsPipeline)
-  //  .bindDescriptorSet(m_starsDescriptorSet)
-  //  .pushConstant(0, screenSize)
-  //  .draw(6, stars.size(), 0, 0);
+  auto cmd = V2::CommandBuffer()
+    .bindVertexBuffer(m_renderer->unitQuad())
+    .bindPipeline(m_starsPipeline)
+    .bindDescriptorSet(m_starsDescriptorSet)
+    .pushConstant(0, screenSize)
+    .draw(6, stars.size(), 0, 0);
+    // .setFence(m_renderer->instanceData())
+    // .setFence(m_renderer->texturePool());
 
-  //m_renderer->submit(cmd);
-
-  // m_renderer->flush();
+  m_renderer->submit(cmd);
 }
 
 
@@ -569,7 +571,7 @@ void EnvironmentPainter::setupStars(SkyRenderData const& sky) {
   ZoneScoped;
 
   if (m_renderer->v2Available())
-    return setupStarsV2(sky);
+     return setupStarsV2(sky);
 
   if (!sky.settings)
     return;
@@ -580,9 +582,7 @@ void EnvironmentPainter::setupStars(SkyRenderData const& sky) {
   m_starTextures.resize(starTypesSize * sky.starFrames);
   for (size_t i = 0; i < starTypesSize; ++i) {
     for (size_t j = 0; j < sky.starFrames; ++j)
-      (void)j;
-      // m_starTextures[i * sky.starFrames + j] = m_textureGroup->loadTexture(starTypes[i] + ":" + toString(j));
-      // m_starTextures[i * sky.starFrames + j] = m_renderer->loadPooledTexture(starTypes[i] + ":" + toString(j));
+      m_starTextures[i * sky.starFrames + j] = m_textureGroup->loadTexture(starTypes[i] + ":" + toString(j));
   }
 
   int starCellSize = sky.settings.queryInt("stars.cellSize");
@@ -609,10 +609,10 @@ void EnvironmentPainter::setupStarsV2(SkyRenderData const& sky) {
   StringList const& starTypes = sky.starTypes();
   size_t starTypesSize = starTypes.size();
 
-  m_starTextures.resize(starTypesSize * sky.starFrames);
+  m_starTexturesV2.resize(starTypesSize * sky.starFrames);
   for (size_t i = 0; i < starTypesSize; ++i) {
     for (size_t j = 0; j < sky.starFrames; ++j)
-      m_starTextures[i * sky.starFrames + j] = m_renderer->loadPooledTexture(starTypes[i] + ":" + toString(j));
+      m_starTexturesV2[i * sky.starFrames + j] = m_renderer->loadPooledTexture(starTypes[i] + ":" + toString(j));
   }
 
   int starCellSize = sky.settings.queryInt("stars.cellSize");

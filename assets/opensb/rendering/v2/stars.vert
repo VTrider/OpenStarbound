@@ -22,7 +22,7 @@ layout (std430, binding = 1) readonly buffer InstanceData {
 
 layout (location = 0) uniform vec2 screenSize;
 
-layout (location = 1) out vec2 uv;
+layout (location = 0) out vec2 uv;
 layout (location = 1) out flat uint texPoolIndex;
 
 void main() {
@@ -32,10 +32,11 @@ void main() {
   uv = vertex.uv;
   texPoolIndex = star.texPoolIndex;
 
+  // why the fk does the game use row major matrices?!
   mat3 transform = mat3(
-      star.m[0], star.m[1], star.m[2],
-      star.m[3], star.m[4], star.m[5],
-      star.m[6], star.m[7], star.m[8]
+      vec3(star.m[0], star.m[3], star.m[6]), // Column 0 (X basis)
+      vec3(star.m[1], star.m[4], star.m[7]), // Column 1 (Y basis)
+      vec3(star.m[2], star.m[5], star.m[8])  // Column 2 (Translation/W)
   );
 
   vec2 screenPos = (transform * vertex.pos.xyz).xy;

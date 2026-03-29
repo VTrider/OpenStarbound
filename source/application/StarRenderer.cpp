@@ -92,11 +92,6 @@ RenderPoly renderFlatPoly(PolyF const& poly, Vec4B color, float param1) {
 
 namespace V2 {
 
-PipelineDescriptor& PipelineDescriptor::setAttribute(VertexAttribute const& attrib) {
-  m_attributes.emplace_back(attrib);
-  return *this;
-}
-
 PipelineDescriptor& PipelineDescriptor::setProgram(String const& programConfig) {
   m_programConfig = programConfig;
   return *this;
@@ -150,6 +145,13 @@ CommandBuffer& CommandBuffer::draw(uint32_t count, uint32_t instanceCount, uint3
   args.emplace_back(firstVertex);
   args.emplace_back(firstInstance);
   m_commandList.emplace_back(CmdType::Draw, std::move(args));
+  return *this;
+}
+
+CommandBuffer& CommandBuffer::setFence(MappedBufferPtr buffer) {
+  List<CmdArg> args;
+  args.emplace_back(buffer);
+  m_commandList.emplace_back(CmdType::SetFence, std::move(args));
   return *this;
 }
 

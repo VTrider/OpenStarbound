@@ -175,24 +175,6 @@ public:
 
 namespace V2 {
 
-enum class VertexComponentType {
-  Float
-};
-
-class VertexFormat {
-public:
-  VertexComponentType type;
-  uint32_t count;
-  bool normalized;
-};
-
-class VertexAttribute {
-public:
-  uint32_t location;
-  VertexFormat format;
-  uint32_t offset;
-};
-
 STAR_CLASS(MappedBuffer);
 
 class MappedBuffer {
@@ -201,8 +183,8 @@ public:
   MappedBuffer(MappedBuffer&) = delete;
   virtual ~MappedBuffer() = default;
 
-  virtual void lock() = 0;
-  virtual void waitSync() = 0;
+  virtual void setFence() = 0;
+  virtual void waitFence() = 0;
   virtual void upload(void const* data, uint32_t size, uint32_t offset) = 0;
   virtual uint32_t handle() = 0;
 };
@@ -211,10 +193,8 @@ STAR_CLASS(PipelineDescriptor);
 
 class PipelineDescriptor {
 public:
-  PipelineDescriptor& setAttribute(VertexAttribute const& attrib);
   PipelineDescriptor& setProgram(String const& programConfig);
 
-  List<VertexAttribute> m_attributes;
   String m_programConfig;
 };
 
@@ -232,7 +212,8 @@ enum class CmdType {
   BindPipeline,
   BindDescriptorSet,
   PushConstant,
-  Draw
+  Draw,
+  SetFence
 };
 
 using ProgramConstantType = std::variant<float, Vec2F, Vec3F, Mat3F>;
@@ -246,6 +227,7 @@ public:
   CommandBuffer& bindDescriptorSet(DescriptorSet const& descriptor);
   CommandBuffer& pushConstant(uint32_t location, ProgramConstantType constant);
   CommandBuffer& draw(uint32_t count, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance);
+  CommandBuffer& setFence(MappedBufferPtr buffer);
 
   List<std::pair<CmdType, List<CmdArg>>> m_commandList;
 };

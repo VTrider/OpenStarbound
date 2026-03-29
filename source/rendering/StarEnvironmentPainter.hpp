@@ -78,7 +78,8 @@ private:
   PerlinF m_rayPerlin;
 
   uint64_t m_starsHash{};
-  List<V2::PooledTexturePtr> m_starTextures;
+  List<TexturePtr> m_starTextures;
+  List<V2::PooledTexturePtr> m_starTexturesV2;
   shared_ptr<Random2dPointGenerator<pair<size_t, float>>> m_starGenerator;
   List<shared_ptr<Random2dPointGenerator<pair<String, float>, double>>> m_debrisGenerators;
 
@@ -86,7 +87,7 @@ private:
   V2::PipelineDescriptor m_starsPipeline;
   V2::DescriptorSet m_starsDescriptorSet;
 
-  struct alignas(16) StarInstance {
+  struct StarInstance {
     Mat3F transform;
     uint32_t textureIndex;
   };

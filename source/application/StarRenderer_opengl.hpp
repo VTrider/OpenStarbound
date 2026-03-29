@@ -6,6 +6,7 @@
 
 #include "GL/glew.h"
 
+#include "array"
 #include "unordered_map"
 
 namespace Star {
@@ -275,14 +276,14 @@ public:
   GlMappedBuffer(uint32_t size);
   virtual ~GlMappedBuffer() noexcept override;
 
-  void lock() override;
-  void waitSync() override;
+  void setFence() override;
+  void waitFence() override;
   void upload(void const* data, uint32_t size, uint32_t offset) override;
   virtual uint32_t handle() override;
 
 private:
   GLuint m_bufferHandle;
-  GLsync m_fence;
+  GLsync m_fence = nullptr;
   void* m_map;
 };
 
@@ -315,18 +316,10 @@ public:
 
   OpenGlRenderer();
   virtual ~OpenGlRenderer() = default;
+
   void submit(CommandBuffer const& cmd) override;
 
-  // This pretty scuffed, if someone wants to implement a metal backend go ahead (:
-  #ifdef STAR_PLATFORM_MACOS
-  bool v2Available() override {
-    return false;
-  }
-  #else
-  bool v2Available() override {
-    return true;
-  }
-  #endif
+  bool v2Available();
 
   virtual TexturePtr createTexture(Image const& texture, TextureAddressing addressing, TextureFiltering filtering) override;
 
@@ -338,13 +331,15 @@ public:
 
   MappedBufferPtr texturePool();
 
-  private:
-    // using VaoKey = std::pair<PipelineDescriptor*, VertexBuffer*>;
-    // std::unordered_map<VaoKey, GLuint> m_vaoMap;
-    const size_t m_maxTextures = 50000; // 400kb vram (texture handle is 8 bytes)
-    const size_t m_instanceDataSize = 2.5e7;// 25MB vram
+private:
+    bool m_v2Available = true;
+    uint32_t m_frameIndex = 0;
+    std::array<GLsync, 3> m_frameFences = { nullptr, nullptr, nullptr };
 
-    GLuint m_emptyVao; // OpenGL requires that a VAO is bound for a draw call but we're not using it
+    const size_t m_maxTextures = 50000; // 400kb vram (texture handle is 8 bytes)
+    const size_t m_instanceDataSize = 7.5e7; // 75mb vram (25mb triple buffered)
+
+    GLuint m_emptyVao; // OpenGL requires that a VAO is bound for a draw call but we're not using it (actually might not be necessary idk 100%)
     MappedBufferPtr m_texturePool;
     MappedBufferPtr m_instanceData;
     size_t m_poolEndOffset = 0; // offset in bytes to the next available slot in the texture pool

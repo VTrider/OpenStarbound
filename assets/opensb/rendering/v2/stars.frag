@@ -2,7 +2,7 @@
 
 #extension GL_ARB_bindless_texture : require
 
-layout (std430, location = 2) readonly buffer TexturePool {
+layout (std430, binding = 2) readonly buffer TexturePool {
   sampler2D texturePool[];
 };
 

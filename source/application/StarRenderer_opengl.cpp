@@ -85,14 +85,14 @@ void main() {
 }
 )SHADER";
 
-/*
+
 static void GLAPIENTRY GlMessageCallback(GLenum, GLenum type, GLuint, GLenum, GLsizei, const GLchar* message, const void* renderer) {
   if (type == GL_DEBUG_TYPE_ERROR) {
     Logger::error("GL ERROR: {}", message);
     __debugbreak();
   }
 }
-*/
+
 
 OpenGlRenderer::OpenGlRenderer() {
   glewExperimental = GL_TRUE;
@@ -114,8 +114,9 @@ OpenGlRenderer::OpenGlRenderer() {
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
   glDisable(GL_DEPTH_TEST);
   if (GLEW_VERSION_4_3) {
-    //glEnable(GL_DEBUG_OUTPUT);
-    //glDebugMessageCallback(GlMessageCallback, this);
+    glEnable(GL_DEBUG_OUTPUT);
+    glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
+    glDebugMessageCallback(GlMessageCallback, this);
   }
 
   m_whiteTexture = createGlTexture(Image::filled({1, 1}, Vec4B(255, 255, 255, 255), PixelFormat::RGBA32),
@@ -1230,14 +1231,14 @@ GlMappedBuffer::~GlMappedBuffer() noexcept {
   glDeleteBuffers(1, &m_bufferHandle);
 }
 
-void GlMappedBuffer::lock() {
+void GlMappedBuffer::setFence() {
   if (m_fence) {
     glDeleteSync(m_fence);
   }
   m_fence = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
 }
 
-void GlMappedBuffer::waitSync() {
+void GlMappedBuffer::waitFence() {
   if (m_fence) {
     glClientWaitSync(m_fence, GL_SYNC_FLUSH_COMMANDS_BIT, GL_TIMEOUT_IGNORED);
     glDeleteSync(m_fence);
@@ -1246,7 +1247,6 @@ void GlMappedBuffer::waitSync() {
 }
 
 void GlMappedBuffer::upload(void const* data, uint32_t size, uint32_t offset) {
-  waitSync();
   uint8_t* dest = reinterpret_cast<uint8_t*>(m_map) + offset;
   std::memcpy(dest, data, size);
 }
@@ -1293,6 +1293,17 @@ uint32_t OpenGlRenderer::GlBindlessTexture::poolIndex() const {
 }
 
 OpenGlRenderer::OpenGlRenderer() : Star::OpenGlRenderer() {
+  // This pretty scuffed, if someone wants to implement a metal backend go ahead (:
+  #ifdef STAR_PLATFORM_MACOS
+  m_v2Available = false;
+  #endif
+
+  if (!GLEW_VERSION_4_6)
+    m_v2Available = false;
+
+  if (!GLEW_ARB_bindless_texture)
+    m_v2Available = false;
+
   if (!v2Available()) {
     Logger::info("Using legacy OpenGL renderer, v2 unavailable");
     return;
@@ -1305,13 +1316,13 @@ OpenGlRenderer::OpenGlRenderer() : Star::OpenGlRenderer() {
 
   // Padded to std430 ssbo spec
   float quadVertices[] = {
-      -0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  0.0f,  0.0f,  0.0f,
-       0.5f, -0.5f,  0.0f,  1.0f,  1.0f,  0.0f,  0.0f,  0.0f,
-      -0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  1.0f,  0.0f,  0.0f,
+      -0.5f, -0.5f,  1.0f,  1.0f,  0.0f,  0.0f,  0.0f,  0.0f,
+       0.5f, -0.5f,  1.0f,  1.0f,  1.0f,  0.0f,  0.0f,  0.0f,
+      -0.5f,  0.5f,  1.0f,  1.0f,  0.0f,  1.0f,  0.0f,  0.0f,
 
-      -0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  1.0f,  0.0f,  0.0f,
-       0.5f, -0.5f,  0.0f,  1.0f,  1.0f,  0.0f,  0.0f,  0.0f,
-       0.5f,  0.5f,  0.0f,  1.0f,  1.0f,  1.0f,  0.0f,  0.0f 
+      -0.5f,  0.5f,  1.0f,  1.0f,  0.0f,  1.0f,  0.0f,  0.0f,
+       0.5f, -0.5f,  1.0f,  1.0f,  1.0f,  0.0f,  0.0f,  0.0f,
+       0.5f,  0.5f,  1.0f,  1.0f,  1.0f,  1.0f,  0.0f,  0.0f 
   };
 
   m_unitQuad = std::make_unique<GlMappedBuffer>(sizeof(quadVertices));
@@ -1325,28 +1336,39 @@ template<class... Ts> struct Overloaded : Ts... { using Ts::operator()...; };
 template<class... Ts> Overloaded(Ts...) -> Overloaded<Ts...>;
 
 void OpenGlRenderer::submit(CommandBuffer const& cmd) {
+  ZoneScoped;
   PipelineDescriptor* currentPipeline = nullptr;
   MappedBufferPtr vertexBuffer = nullptr;
   GLuint program = 0;
-  
+
   for (const auto& [cmd, args] : cmd.m_commandList) {
     switch (cmd) {
       case CmdType::BindVertexBuffer: {
+        ZoneScopedN("BindVertexBuffer");
         vertexBuffer = std::get<MappedBufferPtr>(args[0]);
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, vertexBuffer->handle());
         break;
       }
       case CmdType::BindPipeline: {
+        ZoneScopedN("BindPipeline");
         const auto* pipeline = std::get<const PipelineDescriptor*>(args[0]);
-        if (vertexBuffer) {
-
-        }
-
         program = getProgramConfig(pipeline->m_programConfig);
         glUseProgram(program);
         break;
       }
+      case CmdType::BindDescriptorSet: {
+        ZoneScopedN("BindDescriptorSet");
+        const auto* set = std::get<const DescriptorSet*>(args[0]);
+        for (const auto& [binding, buf] : set->m_uniformBindings) {
+          glBindBufferBase(GL_UNIFORM_BUFFER, binding, buf->handle());
+        }
+        for (const auto& [binding, buf] : set->m_storageBindings) {
+          glBindBufferBase(GL_SHADER_STORAGE_BUFFER, binding, buf->handle());
+        }
+        break;
+      }
       case CmdType::PushConstant: {
+        ZoneScopedN("PushConstant");
         if (!program)
           throw RendererException("CmdType::PushConstant: Pipeline is unbound");
 
@@ -1374,7 +1396,7 @@ void OpenGlRenderer::submit(CommandBuffer const& cmd) {
         break;
       }
       case CmdType::Draw: {
-        glBindVertexArray(m_emptyVao);
+        ZoneScopedN("Draw");
         uint32_t count = std::get<uint32_t>(args[0]);
         uint32_t instanceCount = std::get<uint32_t>(args[1]);
         uint32_t firstVertex = std::get<uint32_t>(args[2]);
@@ -1382,8 +1404,21 @@ void OpenGlRenderer::submit(CommandBuffer const& cmd) {
         glDrawArraysInstancedBaseInstance(GL_TRIANGLES, firstVertex, count, instanceCount, firstInstance);
         break;
       }
+      case CmdType::SetFence: {
+        ZoneScopedN("SetFence");
+        MappedBufferPtr buf = std::get<MappedBufferPtr>(args[0]);
+        buf->setFence();
+        break;
+      }
     }
   }
+  // The legacy renderer doesn't expect the active program to change so we need to reset it
+  // after using the V2 renderer
+  glUseProgram(m_currentEffect->program);
+}
+
+bool OpenGlRenderer::v2Available() {
+  return m_v2Available;
 }
 
 TexturePtr OpenGlRenderer::createTexture(Image const& image, TextureAddressing addressing, TextureFiltering filtering) {
@@ -1397,10 +1432,11 @@ PooledTexturePtr OpenGlRenderer::loadPooledTexture(AssetPath const& imagePath) {
   if (auto it = m_textureMap.find(image); it != m_textureMap.end())
     return it->second;
 
-  auto tex = createGlBindlessTexture(*image, TextureAddressing::Clamp, TextureFiltering::Linear);
+  // Most textures use nearest filtering, I'm not sure the criteria for linear, it might only be for "effect" textures
+  // from what I can tell from the references to the TextureFiltering enum
+  auto tex = createGlBindlessTexture(*image, TextureAddressing::Clamp, TextureFiltering::Nearest);
   size_t handleSize = sizeof(tex->residentHandle);
   m_texturePool->upload(&tex->residentHandle, handleSize, m_poolEndOffset);
-  m_texturePool->lock();
   tex->m_poolIndex = m_poolEndOffset / handleSize;
   m_poolEndOffset += handleSize;
 
@@ -1442,15 +1478,59 @@ GLuint OpenGlRenderer::getProgramConfig(String const& programConfig) {
       }
     }
 
-    // m_renderer->loadEffectConfig(name, config, shaders);
+    GLint status = 0;
+    char logBuffer[1024];
+
+    auto compileShader = [&](GLenum type, String const& name) -> GLuint {
+      GLuint shader = glCreateShader(type);
+      auto* source = shaders.ptr(name);
+      if (!source)
+        return 0;
+      char const* sourcePtr = source->utf8Ptr();
+      glShaderSource(shader, 1, &sourcePtr, NULL);
+      glCompileShader(shader);
+
+      glGetShaderiv(shader, GL_COMPILE_STATUS, &status);
+      if (!status) {
+        glGetShaderInfoLog(shader, sizeof(logBuffer), NULL, logBuffer);
+        throw RendererException(strf("Failed to compile {} shader: {}\n", name, logBuffer));
+      }
+
+      return shader;
+    };
+
+    GLuint vertexShader = 0, fragmentShader = 0;
+    vertexShader = compileShader(GL_VERTEX_SHADER, "vertex");
+    fragmentShader = compileShader(GL_FRAGMENT_SHADER, "fragment");
+    GLuint program = glCreateProgram();
+
+    if (vertexShader)
+      glAttachShader(program, vertexShader);
+    if (fragmentShader)
+      glAttachShader(program, fragmentShader);
+    glLinkProgram(program);
+
+    if (vertexShader)
+      glDeleteShader(vertexShader);
+    if (fragmentShader)
+      glDeleteShader(fragmentShader);
+
+    glGetProgramiv(program, GL_LINK_STATUS, &status);
+    if (!status) {
+      glGetProgramInfoLog(program, sizeof(logBuffer), NULL, logBuffer);
+      glDeleteProgram(program);
+      throw RendererException(strf("Failed to link program: {}\n", logBuffer));
+    }
+
+    m_programConfigMap.emplace(programConfig.utf8(), program);
+    return program;
+
   } else
     throw RendererException::format("Could not find config for program {}", programConfig);
-
-
-  return GLuint();
 }
 
 RefPtr<OpenGlRenderer::GlBindlessTexture> OpenGlRenderer::createGlBindlessTexture(ImageView const& image, TextureAddressing addressing, TextureFiltering filtering) {
+
   auto tex = make_ref<GlBindlessTexture>();
   tex->textureFiltering = filtering;
   tex->textureAddressing = addressing;
@@ -1513,13 +1593,6 @@ RefPtr<OpenGlRenderer::GlBindlessTexture> OpenGlRenderer::createGlBindlessTextur
   tex->residentHandle = glGetTextureHandleARB(tex->textureId);
   glMakeTextureHandleResidentARB(tex->residentHandle);
 
-
-  // TODO: Fix
-  GLenum err;
-  while ((err = glGetError()) != GL_NO_ERROR) {
-      // Use gluErrorString (if using GLU) or a custom map to print the name
-      std::cout << "OpenGL Error: " << err << std::endl;
-  }
 
   return tex;
 }
