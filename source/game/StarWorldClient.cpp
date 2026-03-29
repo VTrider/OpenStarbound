@@ -22,8 +22,8 @@
 #include "StarInspectableEntity.hpp"
 #include "StarCurve25519.hpp"
 
-#define TRACY_ENABLE
-#define TRACY_DELAYED_INIT
+
+
 #include "tracy/Tracy.hpp"
 
 namespace Star {

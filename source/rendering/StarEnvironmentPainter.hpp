@@ -87,8 +87,8 @@ private:
   V2::DescriptorSet m_starsDescriptorSet;
 
   struct alignas(16) StarInstance {
-    uint64_t textureHandle;
     Mat3F transform;
+    uint32_t textureIndex;
   };
 };
 

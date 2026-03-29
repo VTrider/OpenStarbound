@@ -8,8 +8,8 @@ struct VertexAttribute {
 };
 
 struct StarInstance {
-  sampler2D textureHandle;
   float m[9];
+  uint texPoolIndex;
 };
 
 layout (std430, binding = 0) readonly buffer VertexAttributes {
@@ -23,14 +23,14 @@ layout (std430, binding = 1) readonly buffer InstanceData {
 layout (location = 0) uniform vec2 screenSize;
 
 layout (location = 1) out vec2 uv;
-layout (location = 1) out flat sampler2D tex;
+layout (location = 1) out flat uint texPoolIndex;
 
 void main() {
   StarInstance star = instanceData[gl_InstanceID];
 
   VertexAttribute vertex = vertices[gl_VertexID];
   uv = vertex.uv;
-  tex = star.textureHandle;
+  texPoolIndex = star.texPoolIndex;
 
   mat3 transform = mat3(
       star.m[0], star.m[1], star.m[2],

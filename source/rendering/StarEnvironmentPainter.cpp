@@ -6,6 +6,8 @@
 #include "StarLogging.hpp"
 #include "StarMathCommon.hpp"
 
+#include "tracy/Tracy.hpp"
+
 namespace Star {
 
 float const EnvironmentPainter::SunriseTime = 0.072f;
@@ -168,7 +170,7 @@ void EnvironmentPainter::renderStarsV2(float pixelRatio, Vec2F const& screenSize
 
           StarInstance instance;
           instance.transform = instanceTransform;
-          instance.textureHandle = texture->handle();
+          instance.textureIndex = texture->poolIndex();
 
           // primitives.emplace_back(std::in_place_type_t<RenderQuad>(), texture, screenPos * pixelRatio - Vec2F(texture->size()) / 2, 1.0, color, 0.0f);
         }
@@ -176,16 +178,16 @@ void EnvironmentPainter::renderStarsV2(float pixelRatio, Vec2F const& screenSize
     }
   }
 
-  auto cmd = V2::CommandBuffer();
-  cmd.bindVertexBuffer(m_renderer->unitQuad())
-    .bindPipeline(m_starsPipeline)
-    .bindDescriptorSet(m_starsDescriptorSet)
-    .pushConstant(0, screenSize)
-    .draw(6, stars.size(), 0, 0);
+  //auto cmd = V2::CommandBuffer();
+  //cmd.bindVertexBuffer(m_renderer->unitQuad())
+  //  .bindPipeline(m_starsPipeline)
+  //  .bindDescriptorSet(m_starsDescriptorSet)
+  //  .pushConstant(0, screenSize)
+  //  .draw(6, stars.size(), 0, 0);
 
-  m_renderer->submit(cmd);
+  //m_renderer->submit(cmd);
 
-  m_renderer->flush();
+  // m_renderer->flush();
 }
 
 
@@ -578,7 +580,8 @@ void EnvironmentPainter::setupStars(SkyRenderData const& sky) {
   m_starTextures.resize(starTypesSize * sky.starFrames);
   for (size_t i = 0; i < starTypesSize; ++i) {
     for (size_t j = 0; j < sky.starFrames; ++j)
-      m_starTextures[i * sky.starFrames + j] = m_textureGroup->loadTexture(starTypes[i] + ":" + toString(j));
+      (void)j;
+      // m_starTextures[i * sky.starFrames + j] = m_textureGroup->loadTexture(starTypes[i] + ":" + toString(j));
       // m_starTextures[i * sky.starFrames + j] = m_renderer->loadPooledTexture(starTypes[i] + ":" + toString(j));
   }
 

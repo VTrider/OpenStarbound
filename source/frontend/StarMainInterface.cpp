@@ -61,8 +61,8 @@
 #include "StarNpc.hpp"
 #include "StarCharSelection.hpp"
 
-#define TRACY_ENABLE
-#define TRACY_DELAYED_INIT
+
+
 #include "tracy/Tracy.hpp"
 
 namespace Star {

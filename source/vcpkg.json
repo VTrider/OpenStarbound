@@ -17,6 +17,6 @@
     "abseil",
     { "name": "imgui", "features": ["sdl3-binding", "opengl3-binding", "freetype"] },
     { "name": "cpr", "version>=": "1.10.5", "features": ["ssl"] },
-    "tracy"
+    { "name": "tracy", "features": ["on-demand"] }
   ]
 }

@@ -22,8 +22,8 @@
 #include "StarImageLuaBindings.hpp"
 #include "StarUtilityLuaBindings.hpp"
 
-#define TRACY_ENABLE
-#define TRACY_DELAYED_INIT
+
+
 #include "tracy/Tracy.hpp"
 
 namespace Star {

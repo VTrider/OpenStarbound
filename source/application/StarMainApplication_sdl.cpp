@@ -20,8 +20,8 @@
 #include "imgui_impl_sdl3.h"
 #include "imgui_impl_opengl3.h"
 
-#define TRACY_ENABLE
-#define TRACY_DELAYED_INIT
+
+
 #include "tracy/Tracy.hpp"
 
 namespace Star {

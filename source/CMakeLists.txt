@@ -1,5 +1,9 @@
 cmake_minimum_required(VERSION 3.23)
 
+add_compile_definitions(TRACY_ENABLE)
+add_compile_definitions(TRACY_DELAYED_INIT)
+add_compile_definitions(TRACY_ON_DEMAND)
+
 # Find SCCache or CCache
 if (NOT CMAKE_CXX_COMPILER_LAUNCHER MATCHES "ccache")
   find_program(SCCACHE_PATH sccache)
@@ -501,6 +505,7 @@ set(STAR_EXT_LIBS ${STAR_EXT_LIBS}
     ${VORBIS_LIBRARY}
     ${OGG_LIBRARY}
 )
+
 
 pkg_check_modules(PKG_WAYLAND "wayland-client>=1.18" wayland-egl wayland-cursor egl "xkbcommon>=0.5.0")
 if (PKG_WAYLAND_FOUND)
