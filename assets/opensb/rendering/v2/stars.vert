@@ -34,9 +34,9 @@ void main() {
 
   // why the fk does the game use row major matrices?!
   mat3 transform = mat3(
-      vec3(star.m[0], star.m[3], star.m[6]), // Column 0 (X basis)
-      vec3(star.m[1], star.m[4], star.m[7]), // Column 1 (Y basis)
-      vec3(star.m[2], star.m[5], star.m[8])  // Column 2 (Translation/W)
+      vec3(star.m[0], star.m[3], star.m[6]),
+      vec3(star.m[1], star.m[4], star.m[7]),
+      vec3(star.m[2], star.m[5], star.m[8])
   );
 
   vec2 screenPos = (transform * vertex.pos.xyz).xy;
