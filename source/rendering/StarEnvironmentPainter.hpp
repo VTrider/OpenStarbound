@@ -84,7 +84,8 @@ private:
   List<shared_ptr<Random2dPointGenerator<pair<String, float>, double>>> m_debrisGenerators;
 
   V2::CommandBuffer m_starsDrawCmd;
-  V2::PipelineDescriptor m_starsPipeline;
+  V2::PipelineDescriptor m_starsRender;
+  V2::PipelineDescriptor m_starsGenerator;
   V2::DescriptorSet m_starsDescriptorSet;
 
   struct StarInstance {

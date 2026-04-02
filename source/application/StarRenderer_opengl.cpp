@@ -1314,15 +1314,16 @@ OpenGlRenderer::OpenGlRenderer() : Star::OpenGlRenderer() {
   auto textureHandleSize = sizeof(GLuint64);
   m_texturePool = std::make_unique<GlMappedBuffer>(m_maxTextures * textureHandleSize);
 
-  // Padded to std430 ssbo spec
+  // Packed vertices and UVs, you'll need to reconstruct them in the vertex shader
   float quadVertices[] = {
-      -0.5f, -0.5f,  1.0f,  1.0f,  0.0f,  0.0f,  0.0f,  0.0f,
-       0.5f, -0.5f,  1.0f,  1.0f,  1.0f,  0.0f,  0.0f,  0.0f,
-      -0.5f,  0.5f,  1.0f,  1.0f,  0.0f,  1.0f,  0.0f,  0.0f,
+       // vec3              // vec2
+      -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
+       0.5f, -0.5f,  1.0f,  1.0f,  0.0f,
+      -0.5f,  0.5f,  1.0f,  0.0f,  1.0f,
 
-      -0.5f,  0.5f,  1.0f,  1.0f,  0.0f,  1.0f,  0.0f,  0.0f,
-       0.5f, -0.5f,  1.0f,  1.0f,  1.0f,  0.0f,  0.0f,  0.0f,
-       0.5f,  0.5f,  1.0f,  1.0f,  1.0f,  1.0f,  0.0f,  0.0f 
+      -0.5f,  0.5f,  1.0f,  0.0f,  1.0f,
+       0.5f, -0.5f,  1.0f,  1.0f,  0.0f,
+       0.5f,  0.5f,  1.0f,  1.0f,  1.0f
   };
 
   m_unitQuad = std::make_unique<GlMappedBuffer>(sizeof(quadVertices));
@@ -1352,7 +1353,7 @@ void OpenGlRenderer::submit(CommandBuffer const& cmd) {
       case CmdType::BindPipeline: {
         ZoneScopedN("BindPipeline");
         const auto* pipeline = std::get<const PipelineDescriptor*>(args[0]);
-        program = getProgramConfig(pipeline->m_programConfig);
+        program = getProgramConfig(pipeline->m_type, pipeline->m_programConfig);
         glUseProgram(program);
         break;
       }
@@ -1386,7 +1387,8 @@ void OpenGlRenderer::submit(CommandBuffer const& cmd) {
             glProgramUniform3f(program, location, v.x(), v.y(), v.z());
           },
           [=](Mat3F const& m) {
-            glProgramUniformMatrix3fv(program, location, 1, GL_FALSE, reinterpret_cast<const float*>(&m));
+            // Note that this is transposed because Star::Mat3F is row major but OpenGL expects column major
+            glProgramUniformMatrix3fv(program, location, 1, GL_TRUE, reinterpret_cast<const float*>(&m));
           },
           [](const auto&) {
             throw RendererException("Cmd::PushConstant: Unsupported uniform type");
@@ -1404,10 +1406,32 @@ void OpenGlRenderer::submit(CommandBuffer const& cmd) {
         glDrawArraysInstancedBaseInstance(GL_TRIANGLES, firstVertex, count, instanceCount, firstInstance);
         break;
       }
+      case CmdType::DrawIndirect: {
+        MappedBufferPtr cmdBuffer = std::get<MappedBufferPtr>(args[0]);
+        uint32_t offset = std::get<uint32_t>(args[1]);
+        uint32_t drawCount = std::get<uint32_t>(args[2]);
+        uint32_t stride = std::get<uint32_t>(args[3]);
+        glBindBuffer(GL_DRAW_INDIRECT_BUFFER, cmdBuffer->handle());
+        glMultiDrawArraysIndirect(GL_TRIANGLES, reinterpret_cast<void*>(offset), drawCount, stride);
+        break;
+      }
       case CmdType::SetFence: {
         ZoneScopedN("SetFence");
         MappedBufferPtr buf = std::get<MappedBufferPtr>(args[0]);
         buf->setFence();
+        break;
+      }
+      case CmdType::Dispatch: {
+        uint32_t groupCountX = std::get<uint32_t>(args[0]);
+        uint32_t groupCountY = std::get<uint32_t>(args[1]);
+        uint32_t groupCountZ = std::get<uint32_t>(args[2]);
+        glDispatchCompute(groupCountX, groupCountY, groupCountZ);
+        break;
+      }
+      case CmdType::MemoryBarrier: {
+        MemoryBarrierBits bits = std::get<MemoryBarrierBits>(args[0]);
+        uint32_t glBits = translateBarrierBits(bits);
+        glMemoryBarrier(glBits);
         break;
       }
     }
@@ -1456,8 +1480,24 @@ MappedBufferPtr OpenGlRenderer::texturePool() {
   return m_texturePool;
 }
 
-GLuint OpenGlRenderer::getProgramConfig(String const& programConfig) {
-  if (auto it = m_programConfigMap.find(programConfig.utf8()); it != m_programConfigMap.end()) {
+// Todo: implement the specific ones we need, just use all for now
+uint32_t OpenGlRenderer::translateBarrierBits(MemoryBarrierBits bits) {
+  uint32_t glBits = 0;
+  if (bits & MemoryBarrierBits::Command) {
+    glBits |= GL_COMMAND_BARRIER_BIT;
+  }
+  if (bits & MemoryBarrierBits::ShaderStorage) {
+    glBits |= GL_SHADER_STORAGE_BARRIER_BIT;
+  }
+  if (bits & MemoryBarrierBits::All) {
+    glBits |= GL_ALL_BARRIER_BITS;
+  }
+  return glBits;
+}
+
+GLuint OpenGlRenderer::getProgramConfig(PipelineType type, String const& programConfig) {
+  ConfigKey key{type, programConfig.utf8()};
+  if (auto it = m_programConfigMap.find(key); it != m_programConfigMap.end()) {
     return it->second;
   }
 
@@ -1466,7 +1506,7 @@ GLuint OpenGlRenderer::getProgramConfig(String const& programConfig) {
   if (assets->assetExists(path)) {
     StringMap<String> shaders;
     auto config = assets->json(path);
-    auto shaderConfig = config.getObject("effectShaders");
+    auto shaderConfig = config.getObject("programShaders");
     for (auto& entry : shaderConfig) {
       if (entry.second.isType(Json::Type::String)) {
         String shader = entry.second.toString();
@@ -1499,21 +1539,40 @@ GLuint OpenGlRenderer::getProgramConfig(String const& programConfig) {
       return shader;
     };
 
-    GLuint vertexShader = 0, fragmentShader = 0;
-    vertexShader = compileShader(GL_VERTEX_SHADER, "vertex");
-    fragmentShader = compileShader(GL_FRAGMENT_SHADER, "fragment");
     GLuint program = glCreateProgram();
+    switch (type) {
+      case PipelineType::Graphics: {
+        GLuint vertexShader = 0, fragmentShader = 0;
+        vertexShader = compileShader(GL_VERTEX_SHADER, "vertex");
+        fragmentShader = compileShader(GL_FRAGMENT_SHADER, "fragment");
 
-    if (vertexShader)
-      glAttachShader(program, vertexShader);
-    if (fragmentShader)
-      glAttachShader(program, fragmentShader);
-    glLinkProgram(program);
+        if (vertexShader)
+          glAttachShader(program, vertexShader);
+        if (fragmentShader)
+          glAttachShader(program, fragmentShader);
+        glLinkProgram(program);
 
-    if (vertexShader)
-      glDeleteShader(vertexShader);
-    if (fragmentShader)
-      glDeleteShader(fragmentShader);
+        if (vertexShader)
+          glDeleteShader(vertexShader);
+        if (fragmentShader)
+          glDeleteShader(fragmentShader);
+
+        break;
+      }
+      case PipelineType::Compute: {
+        GLuint computeShader = 0;
+        computeShader = compileShader(GL_COMPUTE_SHADER, "compute");
+
+        if (computeShader)
+          glAttachShader(program, computeShader);
+        glLinkProgram(program);
+
+        if (computeShader)
+          glDeleteShader(computeShader);
+
+        break;
+      }
+    }
 
     glGetProgramiv(program, GL_LINK_STATUS, &status);
     if (!status) {
@@ -1522,7 +1581,7 @@ GLuint OpenGlRenderer::getProgramConfig(String const& programConfig) {
       throw RendererException(strf("Failed to link program: {}\n", logBuffer));
     }
 
-    m_programConfigMap.emplace(programConfig.utf8(), program);
+    m_programConfigMap.emplace(key, program);
     return program;
 
   } else

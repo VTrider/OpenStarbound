@@ -92,6 +92,11 @@ RenderPoly renderFlatPoly(PolyF const& poly, Vec4B color, float param1) {
 
 namespace V2 {
 
+PipelineDescriptor& PipelineDescriptor::setType(PipelineType type) {
+  m_type = type;
+  return *this;
+}
+
 PipelineDescriptor& PipelineDescriptor::setProgram(String const& programConfig) {
   m_programConfig = programConfig;
   return *this;
@@ -148,10 +153,35 @@ CommandBuffer& CommandBuffer::draw(uint32_t count, uint32_t instanceCount, uint3
   return *this;
 }
 
+CommandBuffer& CommandBuffer::drawIndirect(MappedBufferPtr cmdBuffer, uint32_t offset, uint32_t drawCount, uint32_t stride) {
+  List<CmdArg> args;
+  args.emplace_back(cmdBuffer);
+  args.emplace_back(offset);
+  args.emplace_back(drawCount);
+  args.emplace_back(stride);
+  m_commandList.emplace_back(CmdType::Draw, std::move(args));
+  return *this;
+}
+
 CommandBuffer& CommandBuffer::setFence(MappedBufferPtr buffer) {
   List<CmdArg> args;
   args.emplace_back(buffer);
   m_commandList.emplace_back(CmdType::SetFence, std::move(args));
+  return *this;
+}
+
+CommandBuffer& CommandBuffer::dispatch(uint32_t groupCountX, uint32_t groupCountY, uint32_t groupCountZ) {
+  List<CmdArg> args;
+  args.emplace_back(groupCountX);
+  args.emplace_back(groupCountY);
+  args.emplace_back(groupCountZ);
+  m_commandList.emplace_back(CmdType::Dispatch, std::move(args));
+  return *this;
+}
+
+CommandBuffer& CommandBuffer::memoryBarrier(MemoryBarrierBits bits) {
+  List<CmdArg> args;
+  args.emplace_back(bits);
   return *this;
 }
 

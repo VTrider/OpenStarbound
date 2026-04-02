@@ -37,7 +37,12 @@ EnvironmentPainter::EnvironmentPainter(V2::RendererPtr renderer) {
     .bindStorageBuffer(1, m_renderer->instanceData())
     .bindStorageBuffer(2, m_renderer->texturePool());
 
-  m_starsPipeline = V2::PipelineDescriptor()
+  m_starsRender = V2::PipelineDescriptor()
+    .setType(V2::PipelineType::Graphics)
+    .setProgram("stars");
+
+  m_starsGenerator = V2::PipelineDescriptor()
+    .setType(V2::PipelineType::Compute)
     .setProgram("stars");
 }
 
@@ -155,6 +160,7 @@ void EnvironmentPainter::renderStarsV2(float pixelRatio, Vec2F const& screenSize
   RectF viewRect = RectF::withSize(Vec2F(), viewSize).padded(screenBuffer);
 
 
+  uint32_t drawCount = 0;
   {
     ZoneScopedN("star loop");
     uint32_t nextInstanceOffset = 0;
@@ -174,6 +180,7 @@ void EnvironmentPainter::renderStarsV2(float pixelRatio, Vec2F const& screenSize
           instance.textureIndex = texture->poolIndex();
 
           m_renderer->instanceData()->upload(&instance, sizeof(instance), nextInstanceOffset);
+          drawCount++;
           nextInstanceOffset += sizeof(instance);
         }
       }
@@ -182,10 +189,10 @@ void EnvironmentPainter::renderStarsV2(float pixelRatio, Vec2F const& screenSize
 
   auto cmd = V2::CommandBuffer()
     .bindVertexBuffer(m_renderer->unitQuad())
-    .bindPipeline(m_starsPipeline)
+    .bindPipeline(m_starsRender)
     .bindDescriptorSet(m_starsDescriptorSet)
     .pushConstant(0, screenSize)
-    .draw(6, stars.size(), 0, 0);
+    .draw(6, drawCount, 0, 0);
     // .setFence(m_renderer->instanceData())
     // .setFence(m_renderer->texturePool());
 

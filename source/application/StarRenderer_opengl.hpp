@@ -7,6 +7,7 @@
 #include "GL/glew.h"
 
 #include "array"
+#include "string"
 #include "unordered_map"
 
 namespace Star {
@@ -332,6 +333,8 @@ public:
   MappedBufferPtr texturePool();
 
 private:
+    uint32_t translateBarrierBits(MemoryBarrierBits bits);
+
     bool m_v2Available = true;
     uint32_t m_frameIndex = 0;
     std::array<GLsync, 3> m_frameFences = { nullptr, nullptr, nullptr };
@@ -344,11 +347,26 @@ private:
     MappedBufferPtr m_instanceData;
     size_t m_poolEndOffset = 0; // offset in bytes to the next available slot in the texture pool
     std::unordered_map<ImageConstPtr, PooledTexturePtr> m_textureMap;
-    std::unordered_map<std::string, GLuint> m_programConfigMap;
+
+    struct ConfigKey {
+      PipelineType type;
+      std::string configName;
+      bool operator==(const ConfigKey& other) const {
+        return type == other.type && configName == other.configName;
+      }
+    };
+
+    struct ConfigKeyHash {
+      std::size_t operator()(const ConfigKey& k) const {
+          return std::hash<PipelineType>{}(k.type) ^ (std::hash<std::string>{}(k.configName) << 1);
+      }
+    };
+
+    std::unordered_map<ConfigKey, GLuint, ConfigKeyHash> m_programConfigMap;
 
     MappedBufferPtr m_unitQuad;
 
-    GLuint getProgramConfig(String const& programConfig);
+    GLuint getProgramConfig(PipelineType type, String const& programConfig);
     RefPtr<GlBindlessTexture> createGlBindlessTexture(ImageView const& texture, TextureAddressing addressing, TextureFiltering filtering);
 };
 

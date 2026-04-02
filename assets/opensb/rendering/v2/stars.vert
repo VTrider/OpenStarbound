@@ -3,12 +3,12 @@
 #extension GL_ARB_bindless_texture : require
 
 struct VertexAttribute {
-  vec4 pos;
-  vec2 uv;
+  float pos[3];
+  float uv[2];
 };
 
 struct StarInstance {
-  float m[9];
+  float m[9]; // this needs to be tightly packed due to mat3 being represented weirdly in video memory
   uint texPoolIndex;
 };
 
@@ -29,7 +29,7 @@ void main() {
   StarInstance star = instanceData[gl_InstanceID];
 
   VertexAttribute vertex = vertices[gl_VertexID];
-  uv = vertex.uv;
+  uv = vec2(vertex.uv[0], vertex.uv[1]);
   texPoolIndex = star.texPoolIndex;
 
   // why the fk does the game use row major matrices?!
@@ -39,6 +39,7 @@ void main() {
       vec3(star.m[2], star.m[5], star.m[8])
   );
 
-  vec2 screenPos = (transform * vertex.pos.xyz).xy;
+  vec3 pos = vec3(vertex.pos[0], vertex.pos[1], vertex.pos[2]);
+  vec2 screenPos = (transform * pos).xy;
   gl_Position = vec4(screenPos / screenSize * 2.0 - 1.0, 0.0, 1.0);
 }
