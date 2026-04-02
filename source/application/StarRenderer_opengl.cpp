@@ -1422,6 +1422,7 @@ void OpenGlRenderer::submit(CommandBuffer const& cmd) {
         break;
       }
       case CmdType::Dispatch: {
+        ZoneScopedN("Dispatch");
         uint32_t groupCountX = std::get<uint32_t>(args[0]);
         uint32_t groupCountY = std::get<uint32_t>(args[1]);
         uint32_t groupCountZ = std::get<uint32_t>(args[2]);
@@ -1429,6 +1430,7 @@ void OpenGlRenderer::submit(CommandBuffer const& cmd) {
         break;
       }
       case CmdType::MemoryBarrier: {
+        ZoneScopedN("MemoryBarrier");
         MemoryBarrierBits bits = std::get<MemoryBarrierBits>(args[0]);
         uint32_t glBits = translateBarrierBits(bits);
         glMemoryBarrier(glBits);

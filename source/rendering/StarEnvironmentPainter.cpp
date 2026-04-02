@@ -192,7 +192,10 @@ void EnvironmentPainter::renderStarsV2(float pixelRatio, Vec2F const& screenSize
     .bindPipeline(m_starsRender)
     .bindDescriptorSet(m_starsDescriptorSet)
     .pushConstant(0, screenSize)
-    .draw(6, drawCount, 0, 0);
+    .draw(6, drawCount, 0, 0)
+    .bindPipeline(m_starsGenerator);
+    // .dispatch(1024, 1, 1)
+    // .memoryBarrier(V2::MemoryBarrierBits::All);
     // .setFence(m_renderer->instanceData())
     // .setFence(m_renderer->texturePool());
 

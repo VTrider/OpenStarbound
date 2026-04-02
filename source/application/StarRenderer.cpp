@@ -115,6 +115,10 @@ DescriptorSet& DescriptorSet::bindStorageBuffer(uint32_t binding, MappedBufferPt
   return *this;
 }
 
+CommandBuffer::CommandBuffer() {
+  m_commandList.reserve(10);
+}
+
 CommandBuffer& CommandBuffer::bindVertexBuffer(MappedBufferPtr buffer) {
   List<CmdArg> args;
   args.emplace_back(buffer);
@@ -182,6 +186,7 @@ CommandBuffer& CommandBuffer::dispatch(uint32_t groupCountX, uint32_t groupCount
 CommandBuffer& CommandBuffer::memoryBarrier(MemoryBarrierBits bits) {
   List<CmdArg> args;
   args.emplace_back(bits);
+  m_commandList.emplace_back(CmdType::MemoryBarrier, std::move(args));
   return *this;
 }
 

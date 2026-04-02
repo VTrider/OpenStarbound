@@ -260,6 +260,8 @@ using CmdArg = std::variant<MappedBufferPtr, uint32_t, const PipelineDescriptor*
 
 class CommandBuffer {
 public:
+  CommandBuffer();
+
   CommandBuffer& bindVertexBuffer(MappedBufferPtr buffer);
   CommandBuffer& bindPipeline(PipelineDescriptor const& pipeline);
   CommandBuffer& bindDescriptorSet(DescriptorSet const& descriptor);
