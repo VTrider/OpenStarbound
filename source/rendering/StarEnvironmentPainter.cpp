@@ -33,8 +33,11 @@ EnvironmentPainter::EnvironmentPainter(V2::RendererPtr renderer) {
   m_timer = 0;
   m_rayPerlin = PerlinF(1, RayPerlinFrequency, RayPerlinAmplitude, 0, 2.0f, 2.0f, Random::randu64());
 
+  // idk what the max stars actually is but I've never seen it go about 2000 so this should be enough
+  m_starInstanceBuffer = m_renderer->shaderStorage().allocateAlignedStorage(sizeof(StarInstance) * 3000, sizeof(StarInstance));
+
   m_starsDescriptorSet = V2::DescriptorSet()
-    .bindStorageBuffer(1, m_renderer->instanceData())
+    .bindStorageBuffer(1, m_starInstanceBuffer.buffer())
     .bindStorageBuffer(2, m_renderer->texturePool());
 
   m_starsRender = V2::PipelineDescriptor()
@@ -164,7 +167,6 @@ void EnvironmentPainter::renderStarsV2(float pixelRatio, Vec2F const& screenSize
   {
     ZoneScopedN("star loop");
     uint32_t nextInstanceOffset = 0;
-    m_renderer->instanceData()->waitFence();
     for (auto& star : stars) {
       Vec2F screenPos = transform.transformVec2(star.first);
       if (viewRect.contains(screenPos)) {
@@ -179,7 +181,8 @@ void EnvironmentPainter::renderStarsV2(float pixelRatio, Vec2F const& screenSize
           instance.transform = instanceTransform;
           instance.textureIndex = texture->poolIndex();
 
-          m_renderer->instanceData()->upload(&instance, sizeof(instance), nextInstanceOffset);
+          m_starInstanceBuffer.upload(&instance, sizeof(instance), nextInstanceOffset);
+
           drawCount++;
           nextInstanceOffset += sizeof(instance);
         }
@@ -192,7 +195,7 @@ void EnvironmentPainter::renderStarsV2(float pixelRatio, Vec2F const& screenSize
     .bindPipeline(m_starsRender)
     .bindDescriptorSet(m_starsDescriptorSet)
     .pushConstant(0, screenSize)
-    .draw(6, drawCount, 0, 0)
+    .draw(6, drawCount, 0, m_starInstanceBuffer.offset() / sizeof(StarInstance))
     .bindPipeline(m_starsGenerator);
     // .dispatch(1024, 1, 1)
     // .memoryBarrier(V2::MemoryBarrierBits::All);

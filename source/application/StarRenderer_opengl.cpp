@@ -1218,7 +1218,7 @@ GLuint OpenGlRenderer::Effect::getUniform(String const& name) {
 
 namespace V2 {
 
-GlMappedBuffer::GlMappedBuffer(uint32_t size) {
+GlMappedBuffer::GlMappedBuffer(uint32_t size) : m_size(size) {
   glCreateBuffers(1, &m_bufferHandle);
 
   GLbitfield storageFlags = GL_MAP_WRITE_BIT | GL_MAP_READ_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT;
@@ -1253,6 +1253,32 @@ void GlMappedBuffer::upload(void const* data, uint32_t size, uint32_t offset) {
 
 uint32_t GlMappedBuffer::handle() {
   return m_bufferHandle;
+}
+
+uint32_t GlMappedBuffer::size() {
+  return m_size;
+}
+
+GlArenaBuffer::GlArenaBuffer(uint32_t size) {
+  m_buffer = std::make_shared<GlMappedBuffer>(size);
+}
+
+BufferView GlArenaBuffer::allocateAlignedStorage(uint32_t size, uint32_t alignment) {
+  uint32_t alignedStorageStart = ((m_end + alignment - 1) / alignment) * alignment;
+  uint32_t alignedStorageEnd = alignedStorageStart + size;
+  if (alignedStorageEnd > m_buffer->size())
+    throw RendererException("GlArenaBuffer::allocateAlignedStorage: Out of memory");
+
+  m_end = alignedStorageEnd;
+  return BufferView(m_buffer, alignedStorageStart, size);
+}
+
+void GlArenaBuffer::setFence() {
+  m_buffer->setFence();
+}
+
+void GlArenaBuffer::waitFence() {
+  m_buffer->waitFence();
 }
 
 OpenGlRenderer::GlBindlessTexture::~GlBindlessTexture() {
@@ -1292,12 +1318,11 @@ uint32_t OpenGlRenderer::GlBindlessTexture::poolIndex() const {
   return m_poolIndex;
 }
 
-OpenGlRenderer::OpenGlRenderer() : Star::OpenGlRenderer() {
+ OpenGlRenderer::OpenGlRenderer() : Star::OpenGlRenderer(), m_shaderStorage(m_shaderStorageSize) {
   // This pretty scuffed, if someone wants to implement a metal backend go ahead (:
   #ifdef STAR_PLATFORM_MACOS
   m_v2Available = false;
   #endif
-
   if (!GLEW_VERSION_4_6)
     m_v2Available = false;
 
@@ -1329,7 +1354,7 @@ OpenGlRenderer::OpenGlRenderer() : Star::OpenGlRenderer() {
   m_unitQuad = std::make_unique<GlMappedBuffer>(sizeof(quadVertices));
   m_unitQuad->upload(quadVertices, sizeof(quadVertices), 0);
 
-  m_instanceData = std::make_unique<GlMappedBuffer>(m_instanceDataSize);
+  m_instanceData = std::make_unique<GlMappedBuffer>(m_shaderStorageSize);
   glCreateVertexArrays(1, &m_emptyVao);
 }
 
@@ -1474,12 +1499,30 @@ MappedBufferPtr OpenGlRenderer::unitQuad() {
   return m_unitQuad;
 }
 
+ArenaBuffer& OpenGlRenderer::shaderStorage() {
+  return m_shaderStorage;
+}
+
 MappedBufferPtr OpenGlRenderer::instanceData() {
   return m_instanceData;
 }
 
 MappedBufferPtr OpenGlRenderer::texturePool() {
   return m_texturePool;
+}
+
+// Single buffered fence for shader storage, the game is cpu bound asf
+// so it's super unlikely to be stalled on the gpu
+void OpenGlRenderer::startFrame() {
+  ZoneScoped;
+  Star::OpenGlRenderer::startFrame();
+  m_shaderStorage.waitFence();
+}
+
+void OpenGlRenderer::finishFrame() {
+  ZoneScoped;
+  Star::OpenGlRenderer::finishFrame();
+  m_shaderStorage.setFence();
 }
 
 // Todo: implement the specific ones we need, just use all for now
@@ -1658,7 +1701,8 @@ RefPtr<OpenGlRenderer::GlBindlessTexture> OpenGlRenderer::createGlBindlessTextur
   return tex;
 }
 
-} // namespace V2
+
+}// namespace V2
 
 } // namespace Star
 

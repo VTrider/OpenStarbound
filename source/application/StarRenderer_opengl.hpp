@@ -58,8 +58,8 @@ public:
 
   void setScreenSize(Vec2U screenSize);
 
-  void startFrame();
-  void finishFrame();
+  virtual void startFrame();
+  virtual void finishFrame();
 
 public:
   struct GlTextureAtlasSet : public TextureAtlasSet<GLuint> {
@@ -280,12 +280,28 @@ public:
   void setFence() override;
   void waitFence() override;
   void upload(void const* data, uint32_t size, uint32_t offset) override;
-  virtual uint32_t handle() override;
+  uint32_t handle() override;
+  uint32_t size() override;
 
 private:
   GLuint m_bufferHandle;
   GLsync m_fence = nullptr;
-  void* m_map;
+  void* m_map = nullptr;
+  uint32_t m_size = 0;
+};
+
+class GlArenaBuffer : public V2::ArenaBuffer {
+public:
+  GlArenaBuffer(uint32_t size);
+  ~GlArenaBuffer() noexcept override = default;
+
+  BufferView allocateAlignedStorage(uint32_t size, uint32_t alignment) override;
+  void setFence() override;
+  void waitFence() override;
+
+private:
+  MappedBufferPtr m_buffer;
+  uint32_t m_end = 0;
 };
 
 // OpenGL 4.6 implementation of the renderer for Windows and Linux.
@@ -327,22 +343,27 @@ public:
   // Retrieves a pooled texture handle or loads it from the image path if it's unloaded
   PooledTexturePtr loadPooledTexture(AssetPath const& imagePath) override;
 
-  MappedBufferPtr unitQuad();
+  MappedBufferPtr unitQuad() override;
+  ArenaBuffer& shaderStorage() override;
   MappedBufferPtr instanceData();
 
   MappedBufferPtr texturePool();
 
+  void startFrame() override;
+  void finishFrame() override;
+
 private:
-    uint32_t translateBarrierBits(MemoryBarrierBits bits);
+    uint32_t translateBarrierBits(MemoryBarrierBits bits) override;
 
     bool m_v2Available = true;
     uint32_t m_frameIndex = 0;
     std::array<GLsync, 3> m_frameFences = { nullptr, nullptr, nullptr };
 
     const size_t m_maxTextures = 50000; // 400kb vram (texture handle is 8 bytes)
-    const size_t m_instanceDataSize = 7.5e7; // 75mb vram (25mb triple buffered)
+    const size_t m_shaderStorageSize = 2.5e7; // 25mb vram
 
     GLuint m_emptyVao; // OpenGL requires that a VAO is bound for a draw call but we're not using it (actually might not be necessary idk 100%)
+    GlArenaBuffer m_shaderStorage;
     MappedBufferPtr m_texturePool;
     MappedBufferPtr m_instanceData;
     size_t m_poolEndOffset = 0; // offset in bytes to the next available slot in the texture pool

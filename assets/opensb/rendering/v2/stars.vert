@@ -26,7 +26,7 @@ layout (location = 0) out vec2 uv;
 layout (location = 1) out flat uint texPoolIndex;
 
 void main() {
-  StarInstance star = instanceData[gl_InstanceID];
+  StarInstance star = instanceData[gl_BaseInstance + gl_InstanceID];
 
   VertexAttribute vertex = vertices[gl_VertexID];
   uv = vec2(vertex.uv[0], vertex.uv[1]);

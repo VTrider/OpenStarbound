@@ -88,6 +88,8 @@ private:
   V2::PipelineDescriptor m_starsGenerator;
   V2::DescriptorSet m_starsDescriptorSet;
 
+  V2::BufferView m_starInstanceBuffer;
+
   struct StarInstance {
     Mat3F transform;
     uint32_t textureIndex;

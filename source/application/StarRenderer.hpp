@@ -187,6 +187,35 @@ public:
   virtual void waitFence() = 0;
   virtual void upload(void const* data, uint32_t size, uint32_t offset) = 0;
   virtual uint32_t handle() = 0;
+  virtual uint32_t size() = 0;
+};
+
+// View of a sub-allocation of a buffer
+class BufferView {
+public:
+  BufferView() = default;
+  BufferView(MappedBufferPtr buf, uint32_t offset, uint32_t size);
+  void upload(void const* data, uint32_t size, uint32_t offset);
+  MappedBufferPtr buffer();
+  uint32_t offset(); // location of this view in the underlying buffer
+
+private:
+  MappedBufferPtr m_buffer = nullptr;
+  uint32_t m_offset = 0;
+  uint32_t m_size = 0;
+};
+
+STAR_CLASS(ArenaBuffer);
+
+class ArenaBuffer {
+public:
+  virtual ~ArenaBuffer() = default;
+
+  // IMPORTANT: if you allocate shader storage it needs to be aligned to
+  // the sizeof the struct for the base instance to read it properly
+  virtual BufferView allocateAlignedStorage(uint32_t size, uint32_t alignment) = 0;
+  virtual void setFence() = 0;
+  virtual void waitFence() = 0;
 };
 
 enum class PipelineType {
@@ -254,6 +283,13 @@ inline uint32_t operator&(MemoryBarrierBits lhs, MemoryBarrierBits rhs) {
   return static_cast<uint32_t>(static_cast<uint32_t>(lhs) & static_cast<uint32_t>(rhs));
 }
 
+struct DrawIndirectCommand {
+  uint32_t vertexCount;
+  uint32_t instanceCount;
+  uint32_t firstVertex;
+  uint32_t firstInstance;
+};
+
 using ProgramConstantType = std::variant<float, Vec2F, Vec3F, Mat3F>;
 using ProgramConstantInfo = std::pair<uint32_t, ProgramConstantType>;
 using CmdArg = std::variant<MappedBufferPtr, uint32_t, const PipelineDescriptor*, const DescriptorSet*, ProgramConstantInfo, MemoryBarrierBits>;
@@ -267,7 +303,7 @@ public:
   CommandBuffer& bindDescriptorSet(DescriptorSet const& descriptor);
   CommandBuffer& pushConstant(uint32_t location, ProgramConstantType constant);
   CommandBuffer& draw(uint32_t count, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance);
-  CommandBuffer& drawIndirect(MappedBufferPtr cmdBuffer, uint32_t offset, uint32_t drawCount, uint32_t stride);
+  CommandBuffer& drawIndirect(MappedBufferPtr indirectCmd, uint32_t offset, uint32_t drawCount, uint32_t stride);
   CommandBuffer& setFence(MappedBufferPtr buffer);
   CommandBuffer& dispatch(uint32_t groupCountX, uint32_t groupCountY, uint32_t groupCountZ);
   CommandBuffer& memoryBarrier(MemoryBarrierBits bits);
@@ -294,7 +330,8 @@ public:
 
   virtual void submit(CommandBuffer const& cmd) = 0;
 
-  virtual MappedBufferPtr unitQuad() = 0;
+  virtual MappedBufferPtr unitQuad() = 0; // prebaked and packed quad vertex data which is used for most of the game's draws
+  virtual ArenaBuffer& shaderStorage() = 0;
   virtual MappedBufferPtr instanceData() = 0; // this buffer holds per instance data for draw calls
   virtual MappedBufferPtr texturePool() = 0; // this buffer holds bindless texture handles
 

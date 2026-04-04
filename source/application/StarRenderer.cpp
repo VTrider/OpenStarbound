@@ -92,6 +92,21 @@ RenderPoly renderFlatPoly(PolyF const& poly, Vec4B color, float param1) {
 
 namespace V2 {
 
+BufferView::BufferView(MappedBufferPtr buf, uint32_t offset, uint32_t size) : m_buffer(buf), m_offset(offset), m_size(size) {
+}
+
+void BufferView::upload(void const* data, uint32_t size, uint32_t offset) {
+  m_buffer->upload(data, size, m_offset + offset);
+}
+
+MappedBufferPtr BufferView::buffer() {
+  return m_buffer;
+}
+
+uint32_t BufferView::offset() {
+  return m_offset;
+}
+
 PipelineDescriptor& PipelineDescriptor::setType(PipelineType type) {
   m_type = type;
   return *this;
@@ -189,6 +204,7 @@ CommandBuffer& CommandBuffer::memoryBarrier(MemoryBarrierBits bits) {
   m_commandList.emplace_back(CmdType::MemoryBarrier, std::move(args));
   return *this;
 }
+
 
 }// namespace V2
 
