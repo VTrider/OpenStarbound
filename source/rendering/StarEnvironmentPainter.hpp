@@ -80,15 +80,16 @@ private:
   uint64_t m_starsHash{};
   List<TexturePtr> m_starTextures;
   List<V2::PooledTexturePtr> m_starTexturesV2;
-  shared_ptr<Random2dPointGenerator<pair<size_t, float>>> m_starGenerator;
+  shared_ptr<Random2dPointGenerator<pair<uint32_t, float>>> m_starGenerator;
   List<shared_ptr<Random2dPointGenerator<pair<String, float>, double>>> m_debrisGenerators;
 
-  V2::CommandBuffer m_starsDrawCmd;
-  V2::PipelineDescriptor m_starsRender;
-  V2::PipelineDescriptor m_starsGenerator;
-  V2::DescriptorSet m_starsDescriptorSet;
+  V2::PipelineDescriptor m_starsRenderPipeline;
+  V2::PipelineDescriptor m_starsSetupPipeline;
+  V2::DescriptorSet m_starsRenderDescriptor;
+  V2::DescriptorSet m_starsSetupDescriptor;
 
-  V2::BufferView m_starInstanceBuffer;
+  V2::MappedBufferPtr m_starsIndirectCmd;
+  V2::BufferView m_starsInstanceBuffer;
 
   struct StarInstance {
     Mat3F transform;

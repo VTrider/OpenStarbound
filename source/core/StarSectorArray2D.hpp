@@ -470,6 +470,7 @@ bool SectorArray2D<ElementT, SectorSize>::evalColumnsPrivPar(
           }
         }
       }
+      return true;
       }));
   }
   for (const auto& f : futures) {

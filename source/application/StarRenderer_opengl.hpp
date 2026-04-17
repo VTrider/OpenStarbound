@@ -296,6 +296,7 @@ public:
   ~GlArenaBuffer() noexcept override = default;
 
   BufferView allocateAlignedStorage(uint32_t size, uint32_t alignment) override;
+  MappedBufferPtr buffer() override;
   void setFence() override;
   void waitFence() override;
 
@@ -342,6 +343,8 @@ public:
 
   // Retrieves a pooled texture handle or loads it from the image path if it's unloaded
   PooledTexturePtr loadPooledTexture(AssetPath const& imagePath) override;
+
+  MappedBufferPtr allocateBuffer(uint32_t size) override;
 
   MappedBufferPtr unitQuad() override;
   ArenaBuffer& shaderStorage() override;

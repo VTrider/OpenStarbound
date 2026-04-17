@@ -130,6 +130,10 @@ DescriptorSet& DescriptorSet::bindStorageBuffer(uint32_t binding, MappedBufferPt
   return *this;
 }
 
+DescriptorSet& DescriptorSet::bindStorageBuffer(uint32_t binding, ArenaBuffer& buf) {
+  return bindStorageBuffer(binding, buf.buffer());
+}
+
 CommandBuffer::CommandBuffer() {
   m_commandList.reserve(10);
 }

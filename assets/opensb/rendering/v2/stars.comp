@@ -1,7 +1,71 @@
 #version 460 core
 
-layout (local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
+#extension GL_ARB_bindless_texture : require
+
+struct StarData {
+  vec2 pos;
+  uint y;
+  float z;
+};
+
+struct StarInstance {
+  float m[9]; // this needs to be tightly packed due to mat3 being represented weirdly in video memory
+  uint texPoolIndex;
+};
+
+struct DrawIndirectCommand {
+ uint count;
+ uint instanceCount;
+ uint first;
+ uint baseInstance;
+};
+
+layout (std430, binding = 1) readonly buffer SetupData {
+  StarData starData[];
+};
+
+layout (std430, binding = 2) readonly buffer StarTextures {
+  uint starTextures[];
+};
+
+layout (std430, binding = 3) readonly buffer TexturePool {
+  sampler2D texturePool[];
+};
+
+layout (std430, binding = 4) writeonly buffer InstanceData {
+  StarInstance instanceData[];
+};
+
+layout (std430, binding = 5) writeonly buffer DrawCommand {
+  DrawIndirectCommand drawCmd;
+};
+
+layout (location = 0) uniform uint count;
+layout (location = 1) uniform float epochTime;
+layout (location = 2) uniform uint starFrames;
+layout (location = 3) uniform float pixelRatio;
+layout (location = 4) uniform uint baseIndex;
+layout (location = 4) uniform mat3 transform;
+
+layout (local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
 
 void main() {
+  uint index = gl_GlobalInvocationID.x;
+  if (index >= count)
+    return;
 
+  StarData star = starData[index];
+  vec2 screenPos = (transform * vec3(star.pos, 1.0)).xy;
+  uint starFrame = uint(epochTime + star.z) % starFrames;
+  uint tex = starTextures[star.y * starFrames + starFrame];
+  vec2 texSize = textureSize(texturePool[tex], 0);
+  vec2 pos = (screenPos * pixelRatio) - (texSize / 2.0);
+
+  mat3 instanceTransform = mat3(1.0);
+
+  StarInstance instance;
+  instance.texPoolIndex = tex;
+
+  instanceData[baseIndex + index] = instance;
+  
 }

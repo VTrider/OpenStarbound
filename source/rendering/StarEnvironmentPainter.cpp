@@ -34,17 +34,24 @@ EnvironmentPainter::EnvironmentPainter(V2::RendererPtr renderer) {
   m_rayPerlin = PerlinF(1, RayPerlinFrequency, RayPerlinAmplitude, 0, 2.0f, 2.0f, Random::randu64());
 
   // idk what the max stars actually is but I've never seen it go about 2000 so this should be enough
-  m_starInstanceBuffer = m_renderer->shaderStorage().allocateAlignedStorage(sizeof(StarInstance) * 3000, sizeof(StarInstance));
+  m_starsInstanceBuffer = m_renderer->shaderStorage().allocateAlignedStorage(sizeof(StarInstance) * 3000, sizeof(StarInstance));
 
-  m_starsDescriptorSet = V2::DescriptorSet()
-    .bindStorageBuffer(1, m_starInstanceBuffer.buffer())
+  m_starsIndirectCmd = m_renderer->allocateBuffer(sizeof(V2::DrawIndirectCommand));
+
+  m_starsRenderDescriptor = V2::DescriptorSet()
+    .bindStorageBuffer(1, m_renderer->shaderStorage())
     .bindStorageBuffer(2, m_renderer->texturePool());
 
-  m_starsRender = V2::PipelineDescriptor()
+  m_starsSetupDescriptor = V2::DescriptorSet()
+                             .bindStorageBuffer(1, m_renderer->shaderStorage())
+                             .bindStorageBuffer(2, m_renderer->shaderStorage())
+                             .bindStorageBuffer(3, m_starsIndirectCmd);
+
+  m_starsRenderPipeline = V2::PipelineDescriptor()
     .setType(V2::PipelineType::Graphics)
     .setProgram("stars");
 
-  m_starsGenerator = V2::PipelineDescriptor()
+  m_starsSetupPipeline = V2::PipelineDescriptor()
     .setType(V2::PipelineType::Compute)
     .setProgram("stars");
 }
@@ -157,7 +164,7 @@ void EnvironmentPainter::renderStarsV2(float pixelRatio, Vec2F const& screenSize
   auto stars = m_starGenerator->generate(field, [&](RandomSource& rand) {
       size_t starType = rand.randu32() % starTypesSize;
       float frameOffset = rand.randu32() % sky.starFrames + rand.randf(starTwinkleMin, starTwinkleMax);
-      return pair<size_t, float>(starType, frameOffset);
+      return pair<uint32_t, float>(starType, frameOffset);
     });
 
   RectF viewRect = RectF::withSize(Vec2F(), viewSize).padded(screenBuffer);
@@ -168,6 +175,7 @@ void EnvironmentPainter::renderStarsV2(float pixelRatio, Vec2F const& screenSize
     ZoneScopedN("star loop");
     uint32_t nextInstanceOffset = 0;
     for (auto& star : stars) {
+      constexpr auto i = sizeof(star);
       Vec2F screenPos = transform.transformVec2(star.first);
       if (viewRect.contains(screenPos)) {
         size_t starFrame = (size_t)(sky.epochTime + star.second.second) % sky.starFrames;
@@ -181,7 +189,7 @@ void EnvironmentPainter::renderStarsV2(float pixelRatio, Vec2F const& screenSize
           instance.transform = instanceTransform;
           instance.textureIndex = texture->poolIndex();
 
-          m_starInstanceBuffer.upload(&instance, sizeof(instance), nextInstanceOffset);
+          m_starsInstanceBuffer.upload(&instance, sizeof(instance), nextInstanceOffset);
 
           drawCount++;
           nextInstanceOffset += sizeof(instance);
@@ -192,15 +200,21 @@ void EnvironmentPainter::renderStarsV2(float pixelRatio, Vec2F const& screenSize
 
   auto cmd = V2::CommandBuffer()
     .bindVertexBuffer(m_renderer->unitQuad())
-    .bindPipeline(m_starsRender)
-    .bindDescriptorSet(m_starsDescriptorSet)
+    .bindPipeline(m_starsRenderPipeline)
+    .bindDescriptorSet(m_starsRenderDescriptor)
     .pushConstant(0, screenSize)
-    .draw(6, drawCount, 0, m_starInstanceBuffer.offset() / sizeof(StarInstance))
-    .bindPipeline(m_starsGenerator);
-    // .dispatch(1024, 1, 1)
-    // .memoryBarrier(V2::MemoryBarrierBits::All);
-    // .setFence(m_renderer->instanceData())
-    // .setFence(m_renderer->texturePool());
+    .draw(6, drawCount, 0, m_starsInstanceBuffer.offset() / sizeof(StarInstance));
+
+  //auto cmd = V2::CommandBuffer()
+  //  .bindPipeline(m_starsSetupPipeline)
+  //  .bindDescriptorSet(m_starsSetupDescriptor)
+  //  .dispatch(stars.size(), 1, 1)
+  //  .memoryBarrier(V2::MemoryBarrierBits::All)
+  //  .bindVertexBuffer(m_renderer->unitQuad())
+  //  .bindPipeline(m_starsRenderPipeline)
+  //  .bindDescriptorSet(m_starsRenderDescriptor)
+  //  .pushConstant(0, screenSize)
+  //  .drawIndirect(m_starsIndirectCmd, 0, 1, 0);
 
   m_renderer->submit(cmd);
 }
@@ -601,7 +615,7 @@ void EnvironmentPainter::setupStars(SkyRenderData const& sky) {
   int starCellSize = sky.settings.queryInt("stars.cellSize");
   Vec2I starCount = jsonToVec2I(sky.settings.query("stars.cellCount"));
 
-  m_starGenerator = make_shared<Random2dPointGenerator<pair<size_t, float>>>(sky.skyParameters.seed, starCellSize, starCount);
+  m_starGenerator = make_shared<Random2dPointGenerator<pair<uint32_t, float>>>(sky.skyParameters.seed, starCellSize, starCount);
 
   JsonArray debrisFields = sky.settings.queryArray("spaceDebrisFields");
   m_debrisGenerators.resize(debrisFields.size());
@@ -631,7 +645,7 @@ void EnvironmentPainter::setupStarsV2(SkyRenderData const& sky) {
   int starCellSize = sky.settings.queryInt("stars.cellSize");
   Vec2I starCount = jsonToVec2I(sky.settings.query("stars.cellCount"));
 
-  m_starGenerator = make_shared<Random2dPointGenerator<pair<size_t, float>>>(sky.skyParameters.seed, starCellSize, starCount);
+  m_starGenerator = make_shared<Random2dPointGenerator<pair<uint32_t, float>>>(sky.skyParameters.seed, starCellSize, starCount);
 
   JsonArray debrisFields = sky.settings.queryArray("spaceDebrisFields");
   m_debrisGenerators.resize(debrisFields.size());

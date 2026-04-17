@@ -1273,6 +1273,10 @@ BufferView GlArenaBuffer::allocateAlignedStorage(uint32_t size, uint32_t alignme
   return BufferView(m_buffer, alignedStorageStart, size);
 }
 
+MappedBufferPtr GlArenaBuffer::buffer() {
+  return m_buffer;
+}
+
 void GlArenaBuffer::setFence() {
   m_buffer->setFence();
 }
@@ -1493,6 +1497,10 @@ PooledTexturePtr OpenGlRenderer::loadPooledTexture(AssetPath const& imagePath) {
 
   m_textureMap.emplace(image, tex);
   return tex;
+}
+
+MappedBufferPtr OpenGlRenderer::allocateBuffer(uint32_t size) {
+  return std::make_shared<GlMappedBuffer>(size);
 }
 
 MappedBufferPtr OpenGlRenderer::unitQuad() {

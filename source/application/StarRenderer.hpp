@@ -214,6 +214,7 @@ public:
   // IMPORTANT: if you allocate shader storage it needs to be aligned to
   // the sizeof the struct for the base instance to read it properly
   virtual BufferView allocateAlignedStorage(uint32_t size, uint32_t alignment) = 0;
+  virtual MappedBufferPtr buffer() = 0;
   virtual void setFence() = 0;
   virtual void waitFence() = 0;
 };
@@ -238,6 +239,7 @@ class DescriptorSet {
 public:
   DescriptorSet& bindUniformBuffer(uint32_t binding, MappedBufferPtr buf);
   DescriptorSet& bindStorageBuffer(uint32_t binding, MappedBufferPtr buf);
+  DescriptorSet& bindStorageBuffer(uint32_t binding, ArenaBuffer& buf);
 
   List<std::pair<uint32_t, MappedBufferPtr>> m_uniformBindings;
   List<std::pair<uint32_t, MappedBufferPtr>> m_storageBindings;
@@ -330,6 +332,7 @@ public:
 
   virtual void submit(CommandBuffer const& cmd) = 0;
 
+  virtual MappedBufferPtr allocateBuffer(uint32_t size) = 0;
   virtual MappedBufferPtr unitQuad() = 0; // prebaked and packed quad vertex data which is used for most of the game's draws
   virtual ArenaBuffer& shaderStorage() = 0;
   virtual MappedBufferPtr instanceData() = 0; // this buffer holds per instance data for draw calls
